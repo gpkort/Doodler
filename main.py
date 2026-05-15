@@ -1,19 +1,22 @@
 from os import path
+import configparser
 
-import ebooklib
-from ebooklib import epub
+
+
+from PIL import Image, ImageDraw, ImageFont
+
+from reader.epub_render import TextRenderer
+
+BOOK_DIR: str = path.join(path.dirname(__file__), "Books")
+
 
 if __name__ == "__main__":
     print("Hello world!")
-    book: epub.EpubBook = epub.read_epub(path.join("Books", "moby-dick.epub"))
-    book_items = list(book.get_items())
+    # epub_path = path.join(BOOK_DIR, "moby-dick.epub")
+    # renderer = TextRenderer(epub_path)
+    # print(f"page count: {renderer.page_count}")
+    # pg7: Image.Image = renderer.render_page(25)
+    # pg7.save(path.join(BOOK_DIR, "page7.png"))
+    # print("Hello world!")
 
-    # for bi in book_items:
-    print(book_items[0].get_type() == ebooklib.ITEM_DOCUMENT)
-    print(book_items[0].get_content())
-
-    # print(book.get_metadata('DC', 'title'))
-    # print(book.get_metadata('DC', 'creator'))
-    # print(book.get_metadata('DC', 'identifier'))
-    # for t in book.toc:
-    #     print(f"t.href: {t.href}, t.title: {t.title}")
+    # https://pymupdf.readthedocs.io/en/latest/recipes-text.html#recipestext
