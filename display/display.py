@@ -23,7 +23,7 @@ class Display:
         print("NOT IMPLEMENTED: init")
     def init_fast (self):
         print("NOT IMPLEMENTED: init_fast") 
-    def display (self, image):
+    def display (self, image:bytes):
         print("NOT IMPLEMENTED: display")
     def init_4Gray (self):
         print("NOT IMPLEMENTED: init_4Gray")    

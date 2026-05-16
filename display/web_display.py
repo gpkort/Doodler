@@ -24,7 +24,7 @@ class WebDisplay(Display):
             raise Exception(f"Failed to initialize display: {response}")
         self.isConnected = True
     
-    def display (self, image):
+    def display (self, image:bytes):
         if self.isConnected:           
             mess:DisplayMessage = DisplayMessage(command="display", data={"image": image})
             response = asyncio.run(self._send(str(mess)))
