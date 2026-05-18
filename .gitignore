@@ -1,4 +1,11 @@
 .venv/
+output/
 
 __pycache__/
 *.pyc
+*.cache
+
+Books/*.bmp
+Books/*.jpg
+Books/*.jpeg
+Books/*.png
