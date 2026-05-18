@@ -5,6 +5,7 @@ PORTABILITY: 100% portable - SPI interface identical on Pi 3B+ and Pi Zero 2 W
 
 import sys
 import os
+form typing import Any
 from PIL import Image
 import logging
 
@@ -13,6 +14,21 @@ LIB_PATH = os.path.join(os.path.dirname(__file__), '../lib')
 if os.path.exists(LIB_PATH):
     sys.path.insert(0, LIB_PATH)
 
+def display_factory(settings: dict[str, Any]) -> 'DisplayDriver':
+    """
+    Factory function to create a DisplayDriver instance based on settings
+
+    Args:
+        settings: Dictionary containing display settings (width, height, orientation)
+
+    Returns:
+        An instance of DisplayDriver
+    """
+    width = settings.get("width", 480)
+    height = settings.get("height", 800)
+    orientation = settings.get("orientation", 90)
+    use_local = settings.get("use_local_display", True)
+    return DisplayDriver(width=width, height=height, rotation=orientation, use_local=use_local)
 
 class DisplayDriver:
     """
