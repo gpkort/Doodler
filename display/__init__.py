@@ -1,7 +1,13 @@
-# Define the __all__ variable
-__all__ = ["display", "web_display", "local_display"]
+__all__ = [
+        "display", 
+        # "web_display", 
+        "local_display",
+        "epaper_display"
+        "display_driver"
+        ]
 
-# Import the submodules
-from . import display
-from . import web_display
-from . import local_display
+from .display import Display
+# from .web_display import WebDisplay
+from .local_display import LocalDisplay
+from .epaper_display import  EpaperDisplay
+from .display_driver import DisplayDriver    
