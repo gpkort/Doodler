@@ -11,7 +11,7 @@ from UI import HomeController
 from display import display_factory
 # from reader.epub_render import TextRenderer
 
-
+#Add some comments
 
 BOOK_DIR: str = path.join(path.dirname(__file__), "Books")
 CONFIG_FILE_NAME: str = "config.ini"
