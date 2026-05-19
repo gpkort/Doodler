@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
-from UI import (HomeController, 
-                SettingsController, 
-                PlayerController, 
-                AudioBookController, 
-                EReaderController)
+# from UI.player import PlayerController
+# from UI.audiobook import AudioBookController
+# from UI.settings import SettingsController
+# from UI.e_reader import EReaderController
 
 class AppController(ABC):
     @abstractmethod
@@ -17,6 +16,6 @@ class AppController(ABC):
     def handle_event(self, event: dict):
         pass
 
-app_list =  OrderedDict.fromkeys([EReaderController, PlayerController, AudioBookController, SettingsController])
+
 
 current_app = None

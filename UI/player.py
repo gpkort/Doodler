@@ -1,4 +1,4 @@
-from UI import AppController
+from UI.utilities import AppController
 
 class PlayerController(AppController):
     def __init__(self,):

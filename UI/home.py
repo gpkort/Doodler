@@ -1,10 +1,16 @@
 from multiprocessing import Event
 from collections.abc import Callable
+from typing_extensions import OrderedDict
 import uuid
 import logging
 
 from input import EventDispatcher, Event, EventHandler
-from UI.utilities import AppController, app_list
+# from UI import (AppController, 
+#                 EReaderController, 
+#                 PlayerController, 
+#                 AudioBookController, 
+#                 SettingsController)
+import UI
 from display import DisplayDriver
 
 
@@ -23,7 +29,10 @@ class HomeController:
         self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter)))
         self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
 
-        self.app_list = app_list
+        self.app_list : OrderedDict[type, None] =  OrderedDict.fromkeys([ UI.EReaderController, UI.PlayerController, 
+                                               UI.AudioBookController, 
+                                               UI.SettingsController])
+        self.current_selection_index: int = 0
         
     def forward(self, data: dict):
         logging.info("HomeScreen received forward event")
