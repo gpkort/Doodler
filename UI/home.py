@@ -1,22 +1,29 @@
 from multiprocessing import Event
 from collections.abc import Callable
-
-from input import EventDispatcher, Event, EventHandler
+import uuid
 import logging
 
+from input import EventDispatcher, Event, EventHandler
+from UI.utilities import AppController, app_list
+from display import DisplayDriver
 
-class HomeScreen:
 
-    def __init__(self, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
+
+class HomeController:
+
+    def __init__(self, display: DisplayDriver, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
         self.event_dispatcher: EventDispatcher = event_dispatcher
         self.exit_callback: Callable[[], None] = exit_callback
+        self.event_uuids: list[uuid.UUID] = []
         
-        event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward))
-        event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward))
-        event_dispatcher.register_handler(EventHandler(Event.UP, self.up))
-        event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down))
-        event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter))
-        event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward)))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward)))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.UP, self.up)))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down)))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter)))
+        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
+
+        self.app_list = app_list
         
     def forward(self, data: dict):
         logging.info("HomeScreen received forward event")
@@ -35,4 +42,10 @@ class HomeScreen:
         # Handle enter event, e.g., select an item
     def quit(self, data: dict):
         logging.info("HomeScreen received quit event")
+        for handler_id in self.event_uuids:
+            self.event_dispatcher.unregister_handler(handler_id)
         self.exit_callback()
+
+    def draw(self):
+        # Render the home screen, e.g., display a list of apps
+        pass

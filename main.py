@@ -4,8 +4,9 @@ import logging
 from typing import Any
 
 from input import  KeyboardInputHandler
+from display import display_factory
 
-from UI import HomeScreen
+from UI import HomeController
 # from PIL import Image, ImageDraw, ImageFont
 from display import display_factory
 # from reader.epub_render import TextRenderer
@@ -53,7 +54,7 @@ def main():
     logging.info("Starting Doodler")
     display_settings = get_display_settings(config)
     # kb = KeyboardInputHandler()
-    HomeScreen(KeyboardInputHandler(), exit_program)
+    HomeController(display_factory(display_settings) ,KeyboardInputHandler(), exit_program)
     
     while not quitting:
         ...
