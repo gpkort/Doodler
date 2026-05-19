@@ -5,7 +5,7 @@ PORTABILITY: 100% portable - SPI interface identical on Pi 3B+ and Pi Zero 2 W
 
 import sys
 import os
-form typing import Any
+from typing import Any
 from PIL import Image
 import logging
 

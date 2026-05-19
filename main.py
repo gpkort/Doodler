@@ -3,50 +3,66 @@ import configparser
 import logging
 from typing import Any
 
+from input import  KeyboardInputHandler
+
 from UI import HomeScreen
 # from PIL import Image, ImageDraw, ImageFont
-from display import DisplayDriver
+from display import display_factory
 # from reader.epub_render import TextRenderer
 
-from time import sleep
+
 
 BOOK_DIR: str = path.join(path.dirname(__file__), "Books")
 CONFIG_FILE_NAME: str = "config.ini"
 
-config: configparser.ConfigParser = None
-display_settings: dict[str, int] = None
+config: configparser.ConfigParser | None = None
+display_settings: dict[str, Any] | None = None
+quitting: bool = False
 
 def load_config(config_file_name: str = CONFIG_FILE_NAME) -> configparser.ConfigParser:
-    config = configparser.ConfigParser()
-    file = config.read(path.join(path.dirname(__file__), config_file_name))
+    ret = configparser.ConfigParser()
+    file = ret.read(path.join(path.dirname(__file__), config_file_name))
 
     if(not file):
         raise FileNotFoundError(f"Config file {config_file_name} not found in {path.dirname(__file__)}")
-    return config
+    return ret
 
-def setup_logging(config: configparser.ConfigParser):
-    log_level = config.get("System", "log_level", fallback="INFO")
-    log_file = config.get("System", "log_file", fallback="doodler.log")
+def setup_logging(config_parse: configparser.ConfigParser):
+    log_level = config_parse.get("System", "log_level", fallback="INFO")
+    log_file = config_parse.get("System", "log_file", fallback="doodler.log")
     logging.basicConfig(level=log_level, filename=log_file, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def get_display_settings(config: configparser.ConfigParser) -> dict[str, Any]:
-    width = config.getint("Display", "width", fallback=480)
-    height = config.getint("Display", "height", fallback=800)
-    orientation = config.getint("Display", "orientation", fallback=90)
-    use_local_display = config.getboolean("Display", "use_local_display", fallback=True)
-    return {"width": width, "height": height, "orientation": orientation}
+def get_display_settings(config_parse: configparser.ConfigParser) -> dict[str, Any]:
+    width = config_parse.getint("Display", "width", fallback=480)
+    height = config_parse.getint("Display", "height", fallback=800)
+    orientation = config_parse.getint("Display", "orientation", fallback=90)
+    use_local_display = config_parse.getboolean("Display", "use_local_display", fallback=True)
+    return {"width": width, "height": height, "orientation": orientation, "use_local_display": use_local_display}
 
+def exit_program():
+    global quitting
+    logging.info("Exiting Doodler")
+    quitting = True
+    exit(0)
+    
 def main():
+    global config, display_settings,quitting
+    
     config = load_config()
     setup_logging(config)
     logging.info("Starting Doodler")
     display_settings = get_display_settings(config)
-
-
+    # kb = KeyboardInputHandler()
+    HomeScreen(KeyboardInputHandler(), exit_program)
+    
+    while not quitting:
+        ...
+        
+    exit(0)
 
 if __name__ == "__main__":
+    
     main()
-    home_screen = HomeScreen()
 
     # display: DisplayDriver = DisplayDriver(480, 800, 90)
     # display.initialize()

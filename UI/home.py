@@ -1,8 +1,38 @@
-from display import DisplayDriver
+from multiprocessing import Event
+from collections.abc import Callable
+
+from input import EventDispatcher, Event, EventHandler
 import logging
+
 
 class HomeScreen:
 
-    def __init__(self, display: DisplayDriver=None):
-        # self.display = display
-        logging.info("HomeScreen initialized")
+    def __init__(self, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
+        self.event_dispatcher: EventDispatcher = event_dispatcher
+        self.exit_callback: Callable[[], None] = exit_callback
+        
+        event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward))
+        event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward))
+        event_dispatcher.register_handler(EventHandler(Event.UP, self.up))
+        event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down))
+        event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter))
+        event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit))
+        
+    def forward(self, data: dict):
+        logging.info("HomeScreen received forward event")
+        # Handle forward event, e.g., navigate to the next screen
+    def backward(self, data: dict):
+        logging.info("HomeScreen received backward event")
+        # Handle backward event, e.g., navigate to the previous screen
+    def up(self, data: dict):
+        logging.info("HomeScreen received up event")
+        # Handle up event, e.g., scroll up
+    def down(self, data: dict):
+        logging.info("HomeScreen received down event")
+        # Handle down event, e.g., scroll down
+    def enter(self, data: dict):
+        logging.info("HomeScreen received enter event")
+        # Handle enter event, e.g., select an item
+    def quit(self, data: dict):
+        logging.info("HomeScreen received quit event")
+        self.exit_callback()
