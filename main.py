@@ -1,14 +1,15 @@
 from os import path
+import platform
 import configparser
 import logging
 from typing import Any
 
 from input import  KeyboardInputHandler
-from display import display_factory
+from PIL import ImageFont, Image
 
 import UI
 # from PIL import Image, ImageDraw, ImageFont
-from display import display_factory
+from display import display_factory, fontmanager, FontConfig, FontSize
 # from reader.epub_render import TextRenderer
 
 #Add some comments
@@ -40,6 +41,26 @@ def get_display_settings(config_parse: configparser.ConfigParser) -> dict[str, A
     use_local_display = config_parse.getboolean("Display", "use_local_display", fallback=True)
     return {"width": width, "height": height, "orientation": orientation, "use_local_display": use_local_display}
 
+def get_font_settings(config_parse: configparser.ConfigParser) -> list[FontConfig]:
+    font_path:str
+    font_name:str
+    if platform.system() == "Windows":
+        font_path = config_parse.get("Fonts", "windows_font_path", fallback="C:\\Windows\\Fonts\\")
+        font_name = config_parse.get("Fonts", "windows_font_name", fallback="Arial.ttf")
+    else:
+        font_path = config_parse.get("Fonts", "linux_font_path", fallback="/usr/share/fonts/truetype/dejavu/")
+        font_name = config_parse.get("Fonts", "linux_font_name", fallback="DejaVuSans.ttf")
+
+    small_font_size = config_parse.getint("Fonts", "small_font_size", fallback=18)
+    medium_font_size = config_parse.getint("Fonts", "medium_font_size", fallback=24)
+    large_font_size = config_parse.getint("Fonts", "large_font_size", fallback=36)
+    
+    return [
+        FontConfig(path=font_path, name=font_name, font_size=FontSize.SMALL, actual_size=small_font_size),
+        FontConfig(path=font_path, name=font_name, font_size=FontSize.MEDIUM, actual_size=medium_font_size),
+        FontConfig(path=font_path, name=font_name, font_size=FontSize.LARGE, actual_size=large_font_size)
+    ]
+
 def exit_program():
     global quitting
     logging.info("Exiting Doodler")
@@ -53,8 +74,18 @@ def main():
     setup_logging(config)
     logging.info("Starting Doodler")
     display_settings = get_display_settings(config)
-    # kb = KeyboardInputHandler()
-    UI.HomeController(display_factory(display_settings) ,KeyboardInputHandler(), exit_program)
+    font_settings = get_font_settings(config)
+    fontmanager.initialize(font_settings)
+    homie = UI.HomeController(display_factory(display_settings), 
+                               KeyboardInputHandler(), 
+                               exit_program)
+    screen = homie.getHomeImage()
+    screen.show()
+
+   
+
+
+    
     
     while not quitting:
         ...
@@ -69,14 +100,8 @@ if __name__ == "__main__":
     # display.initialize()
     # display.clear()
 
-    # font24 = ImageFont.truetype(path.join("/usr/share/fonts/truetype/dejavu/", 'DejaVuSans-Bold.ttf'), 24)
-    # font18 = ImageFont.truetype(path.join("/usr/share/fonts/truetype/dejavu/", 'DejaVuSans-Bold.ttf'), 18)
-    # font35 = ImageFont.truetype(path.join("/usr/share/fonts/truetype/dejavu/", 'DejaVuSans-Bold.ttf'), 35)
-    # Himage = Image.new('1', (480, 800), 255)
-    # draw = ImageDraw.Draw(Himage)
-    # draw.text((10, 0), 'Doodler', font = font35, fill = 0)
-    # draw.line((10, 20, 470, 20), fill = 0)
-    # display.display_image(Himage)
+    
+   
 
     # epub_path = path.join(BOOK_DIR, "moby-dick.epub")
     # renderer = TextRenderer(epub_path, 480, 800)

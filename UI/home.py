@@ -4,20 +4,22 @@ from typing_extensions import OrderedDict
 import uuid
 import logging
 
+from PIL import Image, ImageDraw, ImageFont
+
 from input import EventDispatcher, Event, EventHandler
-# from UI import (AppController, 
-#                 EReaderController, 
-#                 PlayerController, 
-#                 AudioBookController, 
-#                 SettingsController)
 import UI
-from display import DisplayDriver
+from display import DisplayDriver, fontmanager 
 
 
 
 class HomeController:
 
-    def __init__(self, display: DisplayDriver, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
+    def __init__(self, display: DisplayDriver, 
+                 event_dispatcher: EventDispatcher, 
+                 exit_callback: Callable[[], None]):
+        
+        print(f"Is font manager initialized? {fontmanager.isInitialized()}")
+        self.display: DisplayDriver = display
         self.event_dispatcher: EventDispatcher = event_dispatcher
         self.exit_callback: Callable[[], None] = exit_callback
         self.event_uuids: list[uuid.UUID] = []
@@ -57,4 +59,22 @@ class HomeController:
 
     def draw(self):
         # Render the home screen, e.g., display a list of apps
-        pass
+        self.display.initialize()
+        self.display.clear()
+
+    def getHomeImage(self) -> Image.Image:
+        # Create and return the image to be displayed on the home screen
+        Himage = Image.new('1', (480, 800), 255)
+
+        eread = Image.open('assets/thumbnails/ereader_tn.png')
+        audi = Image.open('assets/thumbnails/audio_tn.png')
+        Himage.paste(eread, (50, 50))
+        Himage.paste(audi, (150, 50))
+        # Himage.show()
+        return Himage
+
+    # draw = ImageDraw.Draw(Himage)
+    # draw.text((10, 0), 'Doodler', font = font35, fill = 0)
+    # draw.line((10, 20, 470, 20), fill = 0)
+    # display.display_image(Himage)
+        

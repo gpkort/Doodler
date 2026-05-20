@@ -1,6 +1,6 @@
-from UI.utilities import AppController
+import UI
 
-class SettingsController(AppController):
+class SettingsController(UI.AppController):
     def __init__(self,):
         super().__init__()
 

@@ -1,6 +1,6 @@
-from UI import AppController
+import UI
 
-class EReaderController(AppController):
+class EReaderController(UI.AppController):
     def __init__(self):
         pass
 

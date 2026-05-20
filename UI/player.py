@@ -1,6 +1,6 @@
-from UI.utilities import AppController
+import UI
 
-class PlayerController(AppController):
+class PlayerController(UI.AppController):
     def __init__(self,):
         pass
 
