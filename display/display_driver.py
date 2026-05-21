@@ -10,12 +10,26 @@ from PIL import Image, ImageTk
 import logging
 import tkinter as tk
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 # Add Waveshare library to path
 LIB_PATH = os.path.join(os.path.dirname(__file__), '../lib')
 if os.path.exists(LIB_PATH):
     sys.path.insert(0, LIB_PATH)
+
+@dataclass
+class ScreenObject:
+    x: int
+    y: int
+    height: int
+    width: int
+
+@dataclass
+class ScreenInfo:
+    file_path: str
+    objects: list[ScreenObject]
     
+   
 class DisplayDriver(ABC):
     """Abstract base class for display"""
     
@@ -310,7 +324,6 @@ class EPaperDisplayDriver(DisplayDriver):
             self.logger.info("Display cleaned up")
         except Exception as e:
             self.logger.error(f"Display cleanup failed: {e}")
-
 
 class TkDisplayDriver(DisplayDriver):
     """Tkinter display driver for testing without hardware"""

@@ -27,4 +27,4 @@ class TkButtonInputHandler(EventDispatcher):
         enter_button.grid(row=1, column=1)
 
         quit_button = tk.Button(button_frame, text="Quit", command=lambda: self._dispatch(Event.QUIT))
-        quit_button.grid(row=3, column=1)
+        quit_button.grid(row=1, column=3)
