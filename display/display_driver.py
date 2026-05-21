@@ -18,16 +18,13 @@ if os.path.exists(LIB_PATH):
     sys.path.insert(0, LIB_PATH)
 
 @dataclass
-class ScreenObject:
-    x: int
-    y: int
-    height: int
-    width: int
-
-@dataclass
-class ScreenInfo:
-    file_path: str
-    objects: list[ScreenObject]
+class ButtonInfo:
+    unselected_file_path: str
+    selected_file_path: str
+    x: int = 0
+    y: int = 0
+    width: int = 0
+    height: int = 0
     
    
 class DisplayDriver(ABC):
@@ -53,21 +50,7 @@ class DisplayDriver(ABC):
     def cleanup(self)->None:
         pass
 
-def display_factory(settings: dict[str, Any]) -> EPaperDisplayDriver:
-    """
-    Factory function to create a DisplayDriver instance based on settings
 
-    Args:
-        settings: Dictionary containing display settings (width, height, orientation)
-
-    Returns:
-        An instance of DisplayDriver
-    """
-    width = settings.get("width", 480)
-    height = settings.get("height", 800)
-    orientation = settings.get("orientation", 90)
-    use_local = settings.get("use_local_display", True)
-    return EPaperDisplayDriver(width=width, height=height, rotation=orientation, use_local=use_local)
 
 class EPaperDisplayDriver(DisplayDriver):
     """
@@ -358,3 +341,19 @@ class TkDisplayDriver(DisplayDriver):
 
     def cleanup(self):
         self.logger.info("Mock display cleanup")
+
+def display_factory(settings: dict[str, Any]) -> EPaperDisplayDriver:
+    """
+    Factory function to create a DisplayDriver instance based on settings
+
+    Args:
+        settings: Dictionary containing display settings (width, height, orientation)
+
+    Returns:
+        An instance of DisplayDriver
+    """
+    width = settings.get("width", 480)
+    height = settings.get("height", 800)
+    orientation = settings.get("orientation", 90)
+    use_local = settings.get("use_local_display", True)
+    return EPaperDisplayDriver(width=width, height=height, rotation=orientation, use_local=use_local)

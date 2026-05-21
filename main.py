@@ -10,7 +10,7 @@ from PIL import ImageFont, Image
 
 import UI
 # from PIL import Image, ImageDraw, ImageFont
-from display import TkDisplayDriver, DisplayDriver, fontmanager, FontConfig, FontSize
+from display import TkDisplayDriver, DisplayDriver, fontmanager, FontConfig, FontSize, make_icons
 # from reader.epub_render import TextRenderer
 
 #Add some comments
@@ -79,20 +79,17 @@ def main():
     fontmanager.initialize(font_settings)
     root = tk.Tk()
     root.title("Doodler")
-    # homie = UI.HomeController(TkButtonInputHandler(root), exit_program)
+    make_icons()
+   
     homie: UI.HomeController = UI.HomeController(TkDisplayDriver(root), 
                                                  TkButtonInputHandler(root), 
                                                  exit_program)
-    # screen = homie.getHomeImage()
-    homie.draw(homie.getHomeImage())
+    
+    # homie.draw(homie.getHomeImage())
     
     root.mainloop()
+    # 
     print("Exited main loop, quitting:")
-
-   
-
-
-    
     
     while not quitting:
         ...

@@ -1,9 +1,10 @@
 from logging import config
+import os
 
-from PIL import ImageFont, Image
+from PIL import ImageFont, Image, ImageDraw
 from dataclasses import dataclass
 from enum import Enum
-from os import path
+from os import path, remove
 
 
 
@@ -73,13 +74,29 @@ class _IconManager:
   
 iconmanager = _IconManager()
 fontmanager = _FontManager()
-#  icons: list[str] = ["home.png", "audio.png", "mp3.png", "settings.png", "ereader.png"]
-#     size = 128, 128
 
-#     for icon in icons:
-#         file = path.join("assets", "icons", icon)
-#         save_file = path.join("assets", "thumbnails", icon[:-4] + "_tn.png")
-#         with Image.open(file) as im:
-#             im.thumbnail(size)
-#             im.save(save_file, "PNG")
+def make_icons():
+    icons: list[str] = ["home.png", "audio.png", "mp3.png", "settings.png", "ereader.png"]
+    size = 64, 64
+
+    for icon in icons:
+        file = path.join("assets", "icons", icon)
+        save_file = path.join("assets", "thumbnails","normal", icon[:-4] + "_n.png")
+        if(os.path.exists(save_file)):
+                os.remove(save_file)
+        with Image.open(file) as im:            
+            im.thumbnail(size)
+            im.save(save_file, "PNG")
+    for icon in icons:
+        file = path.join("assets", "thumbnails", "normal", icon[:-4] + "_n.png")
+        save_file = path.join("assets", "thumbnails", "chosen", icon[:-4] + "_c.png")
+        newicon = Image.new('1', (74, 74), 255)
+        im = Image.open(file)
+        draw = ImageDraw.Draw(newicon)
+        draw.rectangle((2, 2, 72, 72), outline="black", width=2, fill=None)
+        newicon.paste(im, (4, 4))
+        if(os.path.exists(save_file)):
+                os.remove(save_file)
+        
+        newicon.save(save_file, "PNG")
        
