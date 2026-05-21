@@ -4,6 +4,7 @@ from .display_driver import (DisplayDriver,
                              TkDisplayDriver, 
                              EPaperDisplayDriver, 
                              display_factory,
-                             ButtonInfo)
+                             ButtonInfo,
+                             ButtonInputHandler,)
 from .display_assett import FontConfig, FontSize, fontmanager, iconmanager, make_icons
  

@@ -13,8 +13,7 @@ from input import EventDispatcher, Event, EventHandler
 import UI
 from display import  (DisplayDriver, 
                       fontmanager, 
-                      FontSize, 
-                     ButtonInfo)
+                     ButtonInfo, ButtonInputHandler)
 
 HOME_SCREEN_PATH = os.path.join("assets", "screens", "home_screen.png")
 
@@ -54,54 +53,26 @@ class HomeController:
         self.app_list : OrderedDict[type, None] =  OrderedDict.fromkeys([ UI.EReaderController, UI.PlayerController, 
                                                UI.AudioBookController, 
                                                UI.SettingsController])
-        self.current_icon_row_index: int = -1
-        self.current_icon_column_index: int = -1
+        self.button_input_handler: ButtonInputHandler = ButtonInputHandler(HOME_SCREEN_ICONS)
 
         self.draw_image_from_path(HOME_SCREEN_PATH)
         
     def forward(self, data: dict):
         logging.info("HomeScreen received forward event")
-        if self.current_icon_row_index == -1 or self.current_icon_column_index == -1:
-            self.current_icon_row_index = 0
-            self.current_icon_column_index = 0  
-            self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
-            return
-
-        self.current_icon_column_index = self.current_icon_column_index + 1 \
-            if self.current_icon_column_index < len(HOME_SCREEN_ICONS[self.current_icon_row_index]) - 1 else 0
-        self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
+        bi: ButtonInfo = self.button_input_handler.direction_change(ButtonInputHandler.Direction.RIGHT)
+        self.draw(self.get_selection_image(bi))
     def backward(self, data: dict):
         logging.info("HomeScreen received backward event")
-        if self.current_icon_row_index == -1 or self.current_icon_column_index == -1:
-            self.current_icon_row_index = 0
-            self.current_icon_column_index = 0  
-            self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
-            return
-        self.current_icon_column_index = self.current_icon_column_index - 1 \
-            if self.current_icon_column_index > 0 else len(HOME_SCREEN_ICONS[self.current_icon_row_index]) - 1
-        self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
+        bi: ButtonInfo = self.button_input_handler.direction_change(ButtonInputHandler.Direction.LEFT)
+        self.draw(self.get_selection_image(bi))           
     def up(self, data: dict):
         logging.info("HomeScreen received up event")
-        if self.current_icon_row_index == -1 or self.current_icon_column_index == -1:
-            self.current_icon_row_index = 0
-            self.current_icon_column_index = 0  
-            self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
-            return
-        self.current_icon_row_index = self.current_icon_row_index - 1 \
-            if self.current_icon_row_index > 0 else len(HOME_SCREEN_ICONS) - 1
-        self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
+        bi: ButtonInfo = self.button_input_handler.direction_change(ButtonInputHandler.Direction.UP)
+        self.draw(self.get_selection_image(bi))
     def down(self, data: dict):
         logging.info("HomeScreen received down event")
-        if self.current_icon_row_index == -1 or self.current_icon_column_index == -1:
-            self.current_icon_row_index = 0
-            self.current_icon_column_index = 0  
-            self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
-            return
-        self.current_icon_row_index = self.current_icon_row_index + 1 \
-            if self.current_icon_row_index < len(HOME_SCREEN_ICONS) - 1 else 0
-        self.draw(self.get_selection_image(self.current_icon_row_index, self.current_icon_column_index))
-
-        # Handle down event, e.g., scroll down
+        bi: ButtonInfo = self.button_input_handler.direction_change(ButtonInputHandler.Direction.DOWN)
+        self.draw(self.get_selection_image(bi))
     def enter(self, data: dict):
         logging.info("HomeScreen received enter event")
         # Handle enter event, e.g., select an item
@@ -122,13 +93,11 @@ class HomeController:
             im:Image.Image = Image.open(path)
             self.draw(im)
 
-    def get_selection_image(self, row_index:int, column_index) -> Image.Image:
-        # Draw a selection box around the currently selected item
-        bi: ButtonInfo = HOME_SCREEN_ICONS[row_index][column_index]
-
+    def get_selection_image(self, button: ButtonInfo) -> Image.Image:
+        # Draw a selection box around the currently selected item        
         top_image: Image.Image = Image.open(HOME_SCREEN_PATH)
-        select: Image.Image = Image.open(bi.selected_file_path)
-        top_image.paste(select, (bi.x, bi.y))
+        select: Image.Image = Image.open(button.selected_file_path)
+        top_image.paste(select, (button.x, button.y))
         return top_image
        
     # def getHomeImage(self) -> Image.Image:
