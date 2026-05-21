@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 
 class AppController(ABC):
     @staticmethod
@@ -12,4 +11,3 @@ class AppController(ABC):
 
 
 
-current_app = None

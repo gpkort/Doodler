@@ -8,17 +8,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 from input import EventDispatcher, Event, EventHandler
 import UI
-from display import DisplayDriver, fontmanager 
-
-
+from display import  DisplayDriver, fontmanager, FontSize
 
 class HomeController:
 
-    def __init__(self, display: DisplayDriver, 
-                 event_dispatcher: EventDispatcher, 
-                 exit_callback: Callable[[], None]):
+    def __init__(self, display: DisplayDriver, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
         
-        print(f"Is font manager initialized? {fontmanager.isInitialized()}")
         self.display: DisplayDriver = display
         self.event_dispatcher: EventDispatcher = event_dispatcher
         self.exit_callback: Callable[[], None] = exit_callback
@@ -57,23 +52,41 @@ class HomeController:
             self.event_dispatcher.unregister_handler(handler_id)
         self.exit_callback()
 
-    def draw(self):
+    def draw(self, image: Image.Image ):
         # Render the home screen, e.g., display a list of apps
         self.display.initialize()
         self.display.clear()
+        self.display.display_image(image)
 
     def getHomeImage(self) -> Image.Image:
         # Create and return the image to be displayed on the home screen
+        top:int = 5
+        r_margin:int = 10
+        l_margin:int = 470
+        first_row_y:int = 80
+        
         Himage = Image.new('1', (480, 800), 255)
-
+        draw = ImageDraw.Draw(Himage)
+        home = Image.open('assets/thumbnails/home_tn.png')
+        home = home.resize((32, 32), Image.Resampling.NEAREST)
         eread = Image.open('assets/thumbnails/ereader_tn.png')
         audi = Image.open('assets/thumbnails/audio_tn.png')
-        Himage.paste(eread, (50, 50))
-        Himage.paste(audi, (150, 50))
+        audi = audi.resize((100, 100), Image.Resampling.NEAREST)
+        mp3 = Image.open('assets/thumbnails/mp3_tn.png')
+        settings = Image.open('assets/thumbnails/settings_tn.png')
+        
+        #Header
+        Himage.paste(home, (r_margin, top))
+        draw.text((150, top), 'HOME', font = fontmanager.get_font(FontSize.LARGE), fill = 0)
+        draw.line((l_margin, top + 45, 470, top + 45), fill = 0)
+        Himage.paste(eread, (r_margin, first_row_y))
+        Himage.paste(audi, (150, first_row_y))
+        Himage.paste(mp3, (240, first_row_y))
+        Himage.paste(settings, (r_margin, 200))
         # Himage.show()
         return Himage
 
-    # draw = ImageDraw.Draw(Himage)
+    # 
     # draw.text((10, 0), 'Doodler', font = font35, fill = 0)
     # draw.line((10, 20, 470, 20), fill = 0)
     # display.display_image(Himage)

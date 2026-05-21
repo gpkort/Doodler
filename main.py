@@ -3,13 +3,14 @@ import platform
 import configparser
 import logging
 from typing import Any
+import tkinter as tk
 
-from input import  KeyboardInputHandler
+from input import  KeyboardInputHandler, TkButtonInputHandler
 from PIL import ImageFont, Image
 
 import UI
 # from PIL import Image, ImageDraw, ImageFont
-from display import display_factory, fontmanager, FontConfig, FontSize
+from display import TkDisplayDriver, DisplayDriver, fontmanager, FontConfig, FontSize
 # from reader.epub_render import TextRenderer
 
 #Add some comments
@@ -76,11 +77,17 @@ def main():
     display_settings = get_display_settings(config)
     font_settings = get_font_settings(config)
     fontmanager.initialize(font_settings)
-    homie = UI.HomeController(display_factory(display_settings), 
-                               KeyboardInputHandler(), 
-                               exit_program)
-    screen = homie.getHomeImage()
-    screen.show()
+    root = tk.Tk()
+    root.title("Doodler")
+    # homie = UI.HomeController(TkButtonInputHandler(root), exit_program)
+    homie: UI.HomeController = UI.HomeController(TkDisplayDriver(root), 
+                                                 TkButtonInputHandler(root), 
+                                                 exit_program)
+    # screen = homie.getHomeImage()
+    homie.draw(homie.getHomeImage())
+    
+    root.mainloop()
+    print("Exited main loop, quitting:")
 
    
 

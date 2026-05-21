@@ -6,15 +6,40 @@ PORTABILITY: 100% portable - SPI interface identical on Pi 3B+ and Pi Zero 2 W
 import sys
 import os
 from typing import Any
-from PIL import Image
+from PIL import Image, ImageTk
 import logging
+import tkinter as tk
+from abc import ABC, abstractmethod
 
 # Add Waveshare library to path
 LIB_PATH = os.path.join(os.path.dirname(__file__), '../lib')
 if os.path.exists(LIB_PATH):
     sys.path.insert(0, LIB_PATH)
+    
+class DisplayDriver(ABC):
+    """Abstract base class for display"""
+    
+    @abstractmethod
+    def initialize(self)->None:
+        pass
+    
+    @abstractmethod
+    def clear(self)->None:
+        pass
+    
+    @abstractmethod
+    def display_image(self, image: Image.Image, use_partial: bool = True, skip_counter: bool = False)->None:
+        pass
+    
+    @abstractmethod
+    def sleep(self)->None:
+        pass
+    
+    @abstractmethod
+    def cleanup(self)->None:
+        pass
 
-def display_factory(settings: dict[str, Any]) -> 'DisplayDriver':
+def display_factory(settings: dict[str, Any]) -> EPaperDisplayDriver:
     """
     Factory function to create a DisplayDriver instance based on settings
 
@@ -28,9 +53,9 @@ def display_factory(settings: dict[str, Any]) -> 'DisplayDriver':
     height = settings.get("height", 800)
     orientation = settings.get("orientation", 90)
     use_local = settings.get("use_local_display", True)
-    return DisplayDriver(width=width, height=height, rotation=orientation, use_local=use_local)
+    return EPaperDisplayDriver(width=width, height=height, rotation=orientation, use_local=use_local)
 
-class DisplayDriver:
+class EPaperDisplayDriver(DisplayDriver):
     """
     Hardware abstraction for Waveshare 7.5" e-Paper HAT (800x480)
     """
@@ -285,3 +310,38 @@ class DisplayDriver:
             self.logger.info("Display cleaned up")
         except Exception as e:
             self.logger.error(f"Display cleanup failed: {e}")
+
+
+class TkDisplayDriver(DisplayDriver):
+    """Tkinter display driver for testing without hardware"""
+    
+    def __init__(self, root: tk.Tk, width: int = 360, height: int = 600, rotation: int = 0):
+        self.width = width
+        self.height = height
+        self.rotation = rotation
+        self.logger = logging.getLogger(__name__)
+        
+        self.root = root        
+        self.canvas = tk.Canvas(self.root, width=self.width, height=self.height)
+        self.canvas.pack()
+        self.imagesprite = None  # Keep reference to PhotoImage to prevent garbage collection
+
+    def initialize(self):
+        self.logger.info("Mock display initialized")
+
+    def clear(self):
+        self.logger.info("Mock display cleared")
+
+    def display_image(self, image: Image.Image, use_partial: bool = True, skip_counter: bool = False):
+        image = image.resize((360, 600), Image.Resampling.NEAREST)
+        tk_img = ImageTk.PhotoImage(image)
+        self.imagesprite = tk_img
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
+        self.root.update_idletasks()
+        self.root.update()
+
+    def sleep(self):
+        self.logger.info("Mock display sleep")
+
+    def cleanup(self):
+        self.logger.info("Mock display cleanup")
