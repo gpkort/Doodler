@@ -79,11 +79,15 @@ def main():
     fontmanager.initialize(font_settings)
     root = tk.Tk()
     root.title("Doodler")
-    make_icons()
+    appManager: UI.AppManager = UI.AppManager(TkDisplayDriver(root), TkButtonInputHandler(root), exit_program)
+    appManager.make_base_image()
+
+
+    # make_icons()
    
-    homie: UI.HomeController = UI.HomeController(TkDisplayDriver(root), 
-                                                 TkButtonInputHandler(root), 
-                                                 exit_program)
+    # homie: UI.HomeController = UI.HomeController(TkDisplayDriver(root), 
+    #                                              TkButtonInputHandler(root), 
+    #                                              exit_program)
     
     # homie.draw(homie.getHomeImage())
     

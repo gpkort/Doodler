@@ -11,6 +11,7 @@ class Event(Enum):
     DOWN = 4    
     ENTER = 5
     QUIT = 6
+    APP_BACK = 7
     UNKNOWN = 99
 
 @dataclass
