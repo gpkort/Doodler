@@ -1,19 +1,13 @@
-from multiprocessing import Event
 from collections.abc import Callable
 import os
-
-from typing_extensions import OrderedDict
-import uuid
 import logging
-
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-from input import EventDispatcher, Event, EventHandler
 import UI
-from display import  (DisplayDriver, 
-                      fontmanager, 
-                     ButtonInfo, ButtonInputHandler)
+# from input import EventDispatcher, Event, EventHandler
+from display import DisplayDriver
+from input import ButtonInfo, ButtonInputHandler
 
 HOME_SCREEN_PATH = os.path.join("assets", "screens", "home_screen.png")
 
@@ -31,31 +25,48 @@ HOME_SCREEN_ICONS:list[list[ButtonInfo]] = [
     ButtonInfo(unselected_file_path="assets/thumbnails/normal/settings_n.png",
                 selected_file_path="assets/thumbnails/chosen/settings_c.png",
                 x=295, y=80, width=74, height=74)   
-    ] 
+    ]
 ]
 
-class HomeController:
+class HomeController(UI.AppController):
 
-    def __init__(self, display: DisplayDriver, event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
+    def __init__(self, display: DisplayDriver, 
+                 event_dispatcher: EventDispatcher, 
+                 exit_callback: Callable[[], None],
+                 *,
+                 home_screen_image: Image.Image | None = None,
+                 data:dict | None = None):
         
-        self.display: DisplayDriver = display
-        self.event_dispatcher: EventDispatcher = event_dispatcher
-        self.exit_callback: Callable[[], None] = exit_callback
-        self.event_uuids: list[uuid.UUID] = []
+        super().__init__(display, 
+                        #  event_dispatcher, 
+                         exit_callback, 
+                         home_screen_image=home_screen_image, 
+                         data=data)
         
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward)))
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward)))
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.UP, self.up)))
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down)))
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter)))
-        self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.UP, self.up)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter)))
+        # self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
 
-        self.app_list : OrderedDict[type, None] =  OrderedDict.fromkeys([ UI.EReaderController, UI.PlayerController, 
-                                               UI.AudioBookController, 
-                                               UI.SettingsController])
         self.button_input_handler: ButtonInputHandler = ButtonInputHandler(HOME_SCREEN_ICONS)
 
-        self.draw_image_from_path(HOME_SCREEN_PATH)
+        # self.draw_image_from_path(HOME_SCREEN_PATH)
+        self.app_list:list[str] = []
+        if self.data and "app_list" in self.data:
+            self.app_list = self.data["app_list"]
+            
+        self.launch_callback: Callable[[str], None] | None = None
+        
+    def handle_event(self, event: dict):
+        pass
+    
+    def register_launch_event(self, callback: Callable[[str], None]):
+        self.launch_callback = callback
+        
+    def unregister_launch_event(self):
+        self.launch_callback = None
         
     def forward(self, data: dict):
         logging.info("HomeScreen received forward event")
@@ -100,26 +111,7 @@ class HomeController:
         top_image.paste(select, (button.x, button.y))
         return top_image
        
-    # def getHomeImage(self) -> Image.Image:
-    #     # Create and return the image to be displayed on the home screen
-    #     top:int = 5
-    #     r_margin:int = 10
-    #     l_margin:int = 470
-    #     first_row_y:int = 80
-        
-    #     Himage = Image.new('1', (480, 800), 255)
-    #     draw = ImageDraw.Draw(Himage)
-        
-    #     #Header
-    #     draw.text((150, top), 'HOME', font = fontmanager.get_font(FontSize.LARGE), fill = 0)
-    #     draw.line((l_margin, top + 45, 470, top + 45), fill = 0)
-       
-    #     for key, value in HomeScreenIcons.items():
-    #        icon = Image.open(value.unselected_file_path)
-    #        Himage.paste(icon, (value.x, value.y))
-
-    #     #Himage.save(os.path.join("assets", "screens", "home_screen.png"), "PNG")
-    #     return Himage
+    
 
     
         

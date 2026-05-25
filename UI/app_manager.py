@@ -1,5 +1,6 @@
 from collections.abc import Callable
 import os
+from typing import Any
 from typing_extensions import OrderedDict
 import uuid
 import logging
@@ -8,17 +9,14 @@ from PIL import Image, ImageDraw, ImageFont
 
 import UI
 from input import EventDispatcher, Event, EventHandler
-from display import  (DisplayDriver, 
-                      fontmanager,
-                      FontSize, 
-                     ButtonInfo, 
-                     ButtonInputHandler)
+from display import  DisplayDriver, fontmanager
 
-APPLICATIONS: dict[str, type] = {
-    "E-Reader": UI.EReaderController,
-    "Audio Player": UI.PlayerController,
-    "Audiobook": UI.AudioBookController,
-    "Settings": UI.SettingsController
+APPLICATIONS: dict[str, UI.AppInfo] = {
+    "Home":UI.AppInfo(UI.HomeController, "assets/screens/base/home_basescreen.png"), 
+    "EReader":UI.AppInfo(UI.EReaderController, "assets/screens/base/e-reader_basescreen.png"), 
+    "Player":UI.AppInfo(UI.PlayerController, "assets/screens/base/mp3_basescreen.png"), 
+    "AudioBook":UI.AppInfo(UI.AudioBookController, "assets/screens/base/audiobook_basescreen.png"), 
+    "Settings":UI.AppInfo(UI.SettingsController, "assets/screens/base/settings_basescreen.png") 
 }
 
 class AppManager:
@@ -30,59 +28,34 @@ class AppManager:
         self.current_app = None
         self.exit_callback = exit_callback
         self.event_uuids: list[uuid.UUID] = []
+        self.logger = logging.getLogger("AppManager")
+        self.current_app: UI.AppController | None = None
 
         self.event_uuids.append(event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
+        self.launch_application("Home", APPLICATIONS["Home"])
 
-    def quit(self, data: dict):
+    def quit(self, data : dict[Any, Any]):
         logging.info("HomeScreen received quit event")
         for handler_id in self.event_uuids:
             self.event_dispatcher.unregister_handler(handler_id)
         self.exit_callback()
 
-    def launch_application(self, app:UI.AppController)->None:
-        ...
+    def launch_application(self, name:str, app:UI.AppInfo)->None:
+        self.logger.info("Launching application: %s", name)
+        img: Image.Image = Image.open(app.base_image_path)
+        self.current_app = app.app_class(self.display, 
+                                         self.event_dispatcher, 
+                                         self.exit_callback,
+                                         home_screen_image=img) # type: ignore
+        
+        if isinstance(self.current_app, UI.HomeController):
+            self.current_app.register_launch_event(self.handle_launch_event) # type: ignore
+        
     def close_current_application(self, app:UI.AppController)->None:
         ...
-
+    def handle_launch_event(self, app_name:str)->None:
+        ...
     def draw_header(self, title:str)->None:
         ...
 
-    def make_base_image(self, width:int = 480, height:int = 800) -> None:
-        # Create and return the image to be displayed on the home screen
-        top:int = 5
-        r_margin:int = 470
-        l_margin:int = 10
-        font = self.font_manager.get_font(FontSize.LARGE) or ImageFont.load_default()
-
-        names:dict[str, str] = {"Home": "assets/thumbnails/normal/home_n.png", 
-                                "Audio Books": "assets/thumbnails/normal/audio_n.png", 
-                                "MP3": "assets/thumbnails/normal/mp3_n.png", 
-                                "Settings": "assets/thumbnails/normal/settings_n.png"}
-        
-        for name, path in names.items():
-            icon:Image.Image = Image.open(path)
-            icon = icon.resize((36, 36))
-            icon_width, icon_height = icon.size
-            print(f"Icon size: {icon_width}x{icon_height}")            
-            Himage = Image.new('1', (width, height), 255)
-            draw = ImageDraw.Draw(Himage)
-        
-            #Header
-            title:str = name
-            tleft, ttop, tright, tbottom = font.getbbox(title)
-            tx:int = icon_width + 40 + l_margin
-            ty:int = (int)(top + (icon_height - (tbottom - ttop)) // 2)
-            line_y:int = (int)(max(icon_height, ttop - top)) + 15
-            Himage.paste(icon, (l_margin, top))
-            draw.text((tx, ty), f"{title}", font = font, fill = "black", width=2  ) #120
-            draw.line((l_margin, line_y, r_margin, line_y), fill = 0) # y=45
-
-            print(f"Header text position: ({tx}, {ty}), line_y: {line_y}")
-
-            save_path = os.path.join("assets", "screens", "base",f"{name.lower()}_basescreen.png")
-            Himage.save(save_path, "PNG")
-            self.exit_callback()
-            
-            # self.display.initialize()
-            # self.display.clear()    
-            # self.display.display_image(Himage)
+    

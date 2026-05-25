@@ -80,7 +80,7 @@ def main():
     root = tk.Tk()
     root.title("Doodler")
     appManager: UI.AppManager = UI.AppManager(TkDisplayDriver(root), TkButtonInputHandler(root), exit_program)
-    appManager.make_base_image()
+    # UI.home.getHomeImage(appManager)
 
 
     # make_icons()
