@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import uuid
 from enum import Enum
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from display import DisplayDriver, TOP_FOR_ICONS, LEFT_MARGIN, RIGHT_MARGIN
 from display.utilities import ICON_HEIGHT, ICON_SPACE, ICON_WIDTH
@@ -23,7 +23,6 @@ class AppController(ABC):
                  event_dispatcher: EventDispatcher,
                  exit_callback: Callable[[], None],   
                  home_screen_image: Image.Image | None = None,
-                 show_on_start: bool = True,
                  data:dict | None = None):
         
         self.display: DisplayDriver = display
@@ -34,8 +33,7 @@ class AppController(ABC):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.data: dict = data or {}
         
-        if show_on_start and self.home_screen_image:
-            self.draw(self.home_screen_image)
+        
     
     
     def draw(self, image: Image.Image):
@@ -96,8 +94,8 @@ class AppController(ABC):
 
 @dataclass
 class IconInfo:
-    unselected_path: str
-    selected_path: str
+    name: str
+    icon_path: str
 
 class IconInputHandler:
     class Direction(Enum):
@@ -173,9 +171,20 @@ class IconInputHandler:
 
         for i, row in enumerate(self.buttons):
             for j, button in enumerate(row):
-                icon: Image.Image = Image.open(button.selected_path if (i == self.row_index and j == self.column_index) else button.unselected_path)
+                icon: Image.Image = Image.open(button.icon_path)
                 icon = icon.resize((self.icon_width, self.icon_height))
-                new_image.paste(icon, (current_x, current_y))
+                new_image.paste(icon, (current_x, current_y))                
+
+                if i == self.row_index and j == self.column_index:
+                    # Draw a border around the selected icon
+                    draw = ImageDraw.Draw(new_image)
+                    draw.rectangle(
+                        [current_x - 3, current_y - 3, 
+                         current_x + self.icon_width + 3, current_y + self.icon_height + 3],
+                        outline="black",
+                        width=2
+                    )
+                
                 current_x += self.icon_width + self.icon_space
 
             current_x = self.left

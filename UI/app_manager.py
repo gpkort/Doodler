@@ -5,12 +5,11 @@ from typing_extensions import OrderedDict
 import uuid
 import logging
 
-from PIL import Image, ImageDraw, ImageFont
-
+from PIL import Image
 import UI
-from input import EventDispatcher, Event, EventHandler
+from input import EventDispatcher
 from display import  DisplayDriver, fontmanager
-from UI import IconInfo, IconInputHandler, AppController, AppInfo
+from UI import IconInfo, IconInputHandler, AppController
 
 
 BASE_SCREEN_PATH = "assets/screens/base/home_basescreen.png"
@@ -24,14 +23,14 @@ APPLICATIONS: dict[str, UI.AppInfo] = {
 
 HOME_SCREEN_ICONS:list[list[IconInfo]] = [
     [
-    IconInfo(unselected_path="assets/thumbnails/normal/ereader_n.png",
-                selected_path="assets/thumbnails/chosen/ereader_c.png"),
-    IconInfo(unselected_path="assets/thumbnails/normal/audio_n.png",
-                selected_path="assets/thumbnails/chosen/audio_c.png"),
-    IconInfo(unselected_path="assets/thumbnails/normal/mp3_n.png",
-                selected_path="assets/thumbnails/chosen/mp3_c.png"),
-    IconInfo(unselected_path="assets/thumbnails/normal/settings_n.png",
-                selected_path="assets/thumbnails/chosen/settings_c.png")   
+    IconInfo(name="EReader",
+                icon_path="assets/thumbnails/chosen/ereader_c.png"),
+    IconInfo(name="Player",
+                icon_path="assets/thumbnails/chosen/audio_c.png"),
+    IconInfo(name="AudioBook",
+                icon_path="assets/thumbnails/chosen/mp3_c.png"),
+    IconInfo(name="Settings",
+                icon_path="assets/thumbnails/chosen/settings_c.png")   
     ]
 ]
 
@@ -83,6 +82,14 @@ class AppManager(AppController):
     
     def enter(self, data: dict):
         self.logger.info("AppManager received enter event")
+
+        if self.icon_input_handler.current_button is not None:
+            app_name = self.icon_input_handler.current_button.name
+            app_info = APPLICATIONS.get(app_name)
+            if app_info:
+                self.launch_application(app_name, app_info)
+            else:
+                self.logger.warning("No application found for name: %s", app_name)
     
     
     def quit(self, data : dict[Any, Any]):

@@ -80,19 +80,9 @@ def main():
     root = tk.Tk()
     root.title("Doodler")
     appManager: UI.AppManager = UI.AppManager(TkDisplayDriver(root), TkButtonInputHandler(root), exit_program)
-    # UI.home.getHomeImage(appManager)
-
-
-    # make_icons()
-   
-    # homie: UI.HomeController = UI.HomeController(TkDisplayDriver(root), 
-    #                                              TkButtonInputHandler(root), 
-    #                                              exit_program)
     
-    # homie.draw(homie.getHomeImage())
     
     root.mainloop()
-    # 
     print("Exited main loop, quitting:")
     
     while not quitting:
