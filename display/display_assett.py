@@ -37,17 +37,17 @@ class _FontManager:
         return _FontManager._isInit
 
     @property
-    def small_font(self) -> ImageFont.FreeTypeFont | None:
-        return self.fonts.get(FontSize.SMALL)
+    def small_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        return self.fonts.get(FontSize.SMALL, ImageFont.load_default_imagefont())
     @property
-    def medium_font(self) -> ImageFont.FreeTypeFont | None:
-        return self.fonts.get(FontSize.MEDIUM) 
+    def medium_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        return self.fonts.get(FontSize.MEDIUM, ImageFont.load_default_imagefont())
     @property
-    def large_font(self) -> ImageFont.FreeTypeFont | None:
-        return self.fonts.get(FontSize.LARGE)
+    def large_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        return self.fonts.get(FontSize.LARGE, ImageFont.load_default_imagefont())
 
-    def get_font(self, size: FontSize) -> ImageFont.FreeTypeFont | None:
-        return self.fonts.get(size)
+    def get_font(self, size: FontSize) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        return self.fonts.get(size, ImageFont.load_default_imagefont())
     
 class _IconManager:
     _isInit: bool

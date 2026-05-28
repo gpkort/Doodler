@@ -1,8 +1,8 @@
 from typing import Callable
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from UI import AppController
-from display.display_driver import DisplayDriver
+from display import DisplayDriver, fontmanager
 from input.dispatcher import EventDispatcher
 from data import Book, get_books
 from UI import IconInfo, IconInputHandler
@@ -14,26 +14,25 @@ class EReaderController(AppController):
                  home_screen_image: Image.Image):
         super().__init__(display, event_dispatcher, exit_callback, home_screen_image)
 
-        self.books: list[Book] = get_books()
-        book_info:list[list[IconInfo]] = []
-
-        j:int = 0
-        for i, book in enumerate(self.books):
-            if i % 4 == 0:
-                book_info.append([])
-                j = 0
-            
-            book_info[-1].append(IconInfo(name=book.title, icon_path=book.thumbnail_path))
-            j += 1
-
+        self.books: list[Book] = []
         
-        self.icon_input_handler: IconInputHandler = IconInputHandler(self.display, 
-                                                                     book_info, home_screen_image,
-                                                                     icon_width=36, icon_height=72)
-
     @staticmethod
     def get_name() -> str:
         return "E-Reader"
+    
+    def create_book_list(self) -> None:
+        self.books = get_books()
+        
+        if self.home_screen_image is not None:
+            draw = ImageDraw.Draw(self.home_screen_image)
+            font = fontmanager.large_font 
+            
+            
+            for idx, book in enumerate(self.books):
+                len = font.getlength(book.title)
+                x_position = 10 + len / 2
+                draw.text((20, y_position), book.title, font=font, fill=0)
+        
 
     def handle_event(self, event: dict):
         pass
