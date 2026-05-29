@@ -9,7 +9,7 @@ from enum import Enum
 from PIL import Image, ImageDraw
 
 from display import DisplayDriver, TOP_FOR_ICONS, LEFT_MARGIN, RIGHT_MARGIN
-from display.utilities import ICON_HEIGHT, ICON_SPACE, ICON_WIDTH
+from display.utilities import ICON_HEIGHT, ICON_SPACE, ICON_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT
 from input import EventDispatcher, EventHandler, Event
 from input.dispatcher import EventHandler
 
@@ -29,7 +29,9 @@ class AppController(ABC):
         self.event_dispatcher: EventDispatcher = event_dispatcher
         self.exit_callback: Callable[[], None] = exit_callback
         self.event_uuids: list[uuid.UUID] = []
-        self.home_screen_image: Image.Image | None = home_screen_image
+        self.home_screen_image: Image.Image = home_screen_image or Image.new("1", 
+                                                                             (SCREEN_WIDTH, SCREEN_HEIGHT), 
+                                                                             color=1)  # Default to white background
         self.logger = logging.getLogger(self.__class__.__name__)
         self.data: dict = data or {}
         
@@ -90,12 +92,23 @@ class AppController(ABC):
     @abstractmethod
     def quit(self, data: dict):
         pass
-    
 
-@dataclass
-class IconInfo:
-    name: str
-    icon_path: str
+class IconLayout(Enum):
+    SIDE_BY_SIDE = 1
+    VERTICAL_LIST = 2
+
+class IconInfo():
+    def __init__(self, name: str, icon: str | Image.Image):
+        self.name = name
+        if isinstance(icon, str):
+            self.icon_path = icon
+            self.img = Image.open(icon)
+        else:
+            self.img = icon
+
+    @property
+    def image(self) -> Image.Image:
+        return self.img
 
 class IconInputHandler:
     class Direction(Enum):
@@ -104,7 +117,7 @@ class IconInputHandler:
         LEFT = 3
         RIGHT = 4
         
-    def __init__(self, display: DisplayDriver, 
+    def __init__(self,
                  buttons: list[list[IconInfo]],
                  base_image: Image.Image, 
                  row_index: int = -1, 
@@ -116,7 +129,6 @@ class IconInputHandler:
                  icon_height: int = ICON_HEIGHT,
                  icon_space: int = ICON_SPACE):
         
-        self.display = display
         self.buttons = buttons
         self.row_index = row_index
         self.column_index = column_index
@@ -128,7 +140,7 @@ class IconInputHandler:
         self.icon_height = icon_height
         self.icon_space = icon_space
 
-        self.draw_current_selection()
+        # self.draw_current_selection()
 
     @property
     def current_button(self) -> IconInfo | None:
@@ -164,16 +176,18 @@ class IconInputHandler:
 
         return self.buttons[self.row_index][self.column_index]
     
-    def draw_current_selection(self):
+    def draw_current_selection(self, icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE) -> list[Image.Image]:
+        images: list[Image.Image] = []
         current_x: int = self.left
         current_y: int = self.top
         new_image = self.base_image.copy()
+        # SCREEN_WIDTH, SCREEN_HEIGHT
 
         for i, row in enumerate(self.buttons):
             for j, button in enumerate(row):
-                icon: Image.Image = Image.open(button.icon_path)
-                icon = icon.resize((self.icon_width, self.icon_height))
-                new_image.paste(icon, (current_x, current_y))                
+                if icon_layout == IconLayout.SIDE_BY_SIDE:
+                    icon = button.image.resize((self.icon_width, self.icon_height))
+                    new_image.paste(icon, (current_x, current_y))
 
                 if i == self.row_index and j == self.column_index:
                     # Draw a border around the selected icon
@@ -189,8 +203,30 @@ class IconInputHandler:
 
             current_x = self.left
             current_y += self.icon_height + self.icon_space
-        self.display.display_image(new_image)
-        
+        return new_image
+    
+    def draw_current_selection_list(self) -> Image.Image:
+        current_x: int = self.left
+        current_y: int = self.top
+        new_image = self.base_image.copy()
+
+        for i, button in enumerate(self.buttons):
+            icon = button.image.resize((self.icon_width, self.icon_height))
+            new_image.paste(icon, (current_x, current_y))
+
+            if i == self.row_index:
+                # Draw a border around the selected icon
+                draw = ImageDraw.Draw(new_image)
+                draw.rectangle(
+                    [current_x - 3, current_y - 3, 
+                     current_x + self.icon_width + 3, current_y + self.icon_height + 3],
+                    outline="black",
+                    width=2
+                )
+
+            current_x += self.icon_width + self.icon_space
+
+        return new_image
                   
     
 

@@ -15,6 +15,8 @@ class Event(Enum):
     ENTER = 7
     QUIT = 8
     APP_BACK = 9
+    PAGE_NEXT = 10
+    PAGE_PREVIOUS = 11
     UNKNOWN = 99
 
 @dataclass

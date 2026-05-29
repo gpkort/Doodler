@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from PIL import Image
 
+SCREEN_WIDTH: int = 480
+SCREEN_HEIGHT: int = 800
+
 TOP_FOR_ICONS: int = 60
 LEFT_MARGIN: int = 10
 RIGHT_MARGIN: int = 470

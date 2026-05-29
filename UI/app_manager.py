@@ -24,13 +24,13 @@ APPLICATIONS: dict[str, UI.AppInfo] = {
 HOME_SCREEN_ICONS:list[list[IconInfo]] = [
     [
     IconInfo(name="EReader",
-                icon_path="assets/thumbnails/chosen/ereader_c.png"),
+                icon="assets/thumbnails/chosen/ereader_c.png"),
     IconInfo(name="Player",
-                icon_path="assets/thumbnails/chosen/audio_c.png"),
+                icon="assets/thumbnails/chosen/audio_c.png"),
     IconInfo(name="AudioBook",
-                icon_path="assets/thumbnails/chosen/mp3_c.png"),
+                icon="assets/thumbnails/chosen/mp3_c.png"),
     IconInfo(name="Settings",
-                icon_path="assets/thumbnails/chosen/settings_c.png")   
+                icon="assets/thumbnails/chosen/settings_c.png")   
     ]
 ]
 
@@ -44,12 +44,10 @@ class AppManager(AppController):
         self.current_app: UI.AppController | None = None
 
         self.register_app_controller()
-        self.icon_input_handler: IconInputHandler = IconInputHandler(display, 
-                                                                     HOME_SCREEN_ICONS,
-                                                                     Image.open(BASE_SCREEN_PATH))
+        self.icon_input_handler: IconInputHandler = IconInputHandler(HOME_SCREEN_ICONS,self.home_screen_image)
         
         
-
+        self.display.display_image(self.icon_input_handler.draw_current_selection())
     
     def handle_event(self, event: dict):
         self.logger.info("AppManager received event: %s", event)
@@ -66,8 +64,7 @@ class AppManager(AppController):
     
     def up(self, data: dict):
         self.logger.info("AppManager received up event")
-        self.icon_input_handler.direction_change(IconInputHandler.Direction.UP)
-    
+        self.icon_input_handler.direction_change(IconInputHandler.Direction.UP)    
     def down(self, data: dict):
         self.logger.info("AppManager received down event")
         self.icon_input_handler.direction_change(IconInputHandler.Direction.DOWN)

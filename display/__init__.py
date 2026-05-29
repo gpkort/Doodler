@@ -7,6 +7,9 @@ from .utilities import (DisplayDriver,
                         RIGHT_MARGIN, 
                         ICON_WIDTH, 
                         ICON_HEIGHT,
-                        ICON_SPACE)
+                        ICON_SPACE,
+                        SCREEN_WIDTH,
+                        SCREEN_HEIGHT)
+
 from .display_driver import TkDisplayDriver, EPaperDisplayDriver
 from .display_assett import FontConfig, FontSize, fontmanager, iconmanager, make_icons
