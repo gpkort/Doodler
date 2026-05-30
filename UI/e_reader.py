@@ -16,6 +16,8 @@ class EReaderController(AppController):
 
         self.books: list[Book] = []
         self.create_book_buttons()
+        self.icon_input_handler: IconInputHandler = IconInputHandler(self.create_book_buttons(), 
+                                                                     self.home_screen_image)
         
     @staticmethod
     def get_name() -> str:

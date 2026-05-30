@@ -98,17 +98,59 @@ class IconLayout(Enum):
     VERTICAL_LIST = 2
 
 class IconInfo():
-    def __init__(self, name: str, icon: str | Image.Image):
+    def __init__(self, name: str, 
+                 icon: str | Image.Image, 
+                 top: int=0, 
+                 bottom: int=0,
+                 right: int=0,
+                 left: int=0):
+        self._top = top
+        self._bottom = bottom
+        self._right = right
+        self._left = left
         self.name = name
         if isinstance(icon, str):
             self.icon_path = icon
             self.img = Image.open(icon)
+            
         else:
             self.img = icon
 
     @property
     def image(self) -> Image.Image:
         return self.img
+    
+    @property
+    def top(self) -> int:
+        return self._top
+    
+    @top.setter
+    def top(self, value: int):
+        self._top = value
+
+    @property
+    def bottom(self) -> int:
+        return self._bottom
+    
+    @bottom.setter
+    def bottom(self, value: int):
+        self._bottom = value
+
+    @property
+    def right(self) -> int:
+        return self._right
+
+    @right.setter
+    def right(self, value: int):
+        self._right = value
+
+    @property
+    def left(self) -> int:
+        return self._left
+
+    @left.setter
+    def left(self, value: int):
+        self._left = value
 
 class IconInputHandler:
     class Direction(Enum):
