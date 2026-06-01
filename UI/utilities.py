@@ -8,10 +8,17 @@ from enum import Enum
 
 from PIL import Image, ImageDraw
 
-from display import DisplayDriver, TOP_FOR_ICONS, LEFT_MARGIN, RIGHT_MARGIN
-from display.utilities import ICON_HEIGHT, ICON_SPACE, ICON_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT
+from display import (DisplayDriver, 
+                     TOP_FOR_ICONS, 
+                     LEFT_MARGIN, 
+                     RIGHT_MARGIN,
+                     SCREEN_WIDTH,
+                     SCREEN_HEIGHT)
 from input import EventDispatcher, EventHandler, Event
 from input.dispatcher import EventHandler
+
+ICON_SIDE = 36
+ICON_SPACE = 10
 
 @dataclass
 class AppInfo:
@@ -98,17 +105,24 @@ class IconLayout(Enum):
     VERTICAL_LIST = 2
 
 class IconInfo():
-    def __init__(self, name: str, 
-                 icon: str | Image.Image, 
+    def __init__(self, name: str,
+                 icon: str | Image.Image,
+                 row: int = 0,
+                 column: int = 0,
                  top: int=0, 
                  bottom: int=0,
                  right: int=0,
                  left: int=0):
+        
         self._top = top
         self._bottom = bottom
         self._right = right
         self._left = left
         self.name = name
+        self.row = row
+        self.column = column
+        self.page = -1
+        
         if isinstance(icon, str):
             self.icon_path = icon
             self.img = Image.open(icon)
@@ -151,6 +165,20 @@ class IconInfo():
     @left.setter
     def left(self, value: int):
         self._left = value
+        
+    @property
+    def cooridinate(self) -> tuple[int, int]:
+        return (self.left, self.top)
+    
+    def set_coordinate(self, left: int, top: int):
+        self.left = left
+        self.top = top
+        
+    def set_row(self, row: int):
+        self.row = row
+        
+    def set_column(self, column: int):
+        self.column = column
 
 class IconInputHandler:
     class Direction(Enum):
@@ -160,16 +188,17 @@ class IconInputHandler:
         RIGHT = 4
         
     def __init__(self,
-                 buttons: list[list[IconInfo]],
+                 buttons: list[IconInfo],
                  base_image: Image.Image, 
-                 row_index: int = -1, 
-                 column_index: int = -1,
+                 row_index: int = 0, 
+                 column_index: int = 0,
                  top: int = TOP_FOR_ICONS,
                  left: int = LEFT_MARGIN,
                  right: int = RIGHT_MARGIN,
-                 icon_width: int = ICON_WIDTH,
-                 icon_height: int = ICON_HEIGHT,
-                 icon_space: int = ICON_SPACE):
+                 icon_side: int = ICON_SIDE,
+                 icon_space: int = ICON_SPACE,
+                 row_length: int = 0,
+                 column_length: int = 0):
         
         self.buttons = buttons
         self.row_index = row_index
@@ -178,9 +207,12 @@ class IconInputHandler:
         self.left = left
         self.right = right
         self.base_image = base_image
-        self.icon_width = icon_width
-        self.icon_height = icon_height
+        self.icon_side = icon_side
         self.icon_space = icon_space
+        self.row_length = row_length
+        self.column_length = column_length
+        
+        self.icon_pages: list[Image.Image] = self.draw_pages()
 
         # self.draw_current_selection()
 
@@ -188,7 +220,11 @@ class IconInputHandler:
     def current_button(self) -> IconInfo | None:
         if self.row_index == -1 or self.column_index == -1:
             return None
-        return self.buttons[self.row_index][self.column_index]
+        
+        for button in self.buttons:
+            if button.row == self.row_index and button.column == self.column_index:
+                return button
+        return None
     
     @property
     def current_row_index(self) -> int:
@@ -197,79 +233,78 @@ class IconInputHandler:
     def current_column_index(self) -> int:
         return self.column_index
 
-    def direction_change(self, direction: Direction) -> IconInfo :
-        if self.row_index == -1 or self.column_index == -1:
-            self.row_index = 0
-            self.column_index = 0
-            return self.buttons[self.row_index][self.column_index]
-    
+    def direction_change(self, direction: Direction, auto_draw: bool = True) -> None:
         if direction == IconInputHandler.Direction.UP:
-            self.row_index = self.row_index - 1 if self.row_index > 0 else len(self.buttons) - 1
-            self.draw_current_selection()
+            self.row_index = self.row_index - 1 if self.row_index > 0 else self.row_length - 1
         elif direction == IconInputHandler.Direction.DOWN:
-            self.row_index = self.row_index + 1 if self.row_index < len(self.buttons) - 1 else 0
-            self.draw_current_selection()
+            self.row_index = self.row_index + 1 if self.row_index < self.row_length - 1 else 0           
         elif direction == IconInputHandler.Direction.LEFT:
-            self.column_index = self.column_index - 1 if self.column_index > 0 else len(self.buttons[self.row_index]) - 1
-            self.draw_current_selection()   
+            self.column_index = self.column_index - 1 if self.column_index > 0 else self.column_length - 1           
         elif direction == IconInputHandler.Direction.RIGHT:
-            self.column_index = self.column_index + 1 if self.column_index < len(self.buttons[self.row_index]) - 1 else 0
-            self.draw_current_selection()
+            self.column_index = self.column_index + 1 if self.column_index < self.column_length - 1 else 0
 
-        return self.buttons[self.row_index][self.column_index]
+        if auto_draw:
+            self.draw_current_selection()
     
-    def draw_current_selection(self, icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE) -> list[Image.Image]:
+    def get_current_selection(self) -> IconInfo | None:
+        for button in self.buttons:
+            if button.row == self.row_index and button.column == self.column_index:
+                return button
+        return None
+    def draw_current_selection(self):
+        button = self.get_current_selection()
+        if button is not None:
+            page_image = self.icon_pages[button.page]
+            draw = ImageDraw.Draw(page_image)
+            draw.rectangle(
+                [button.left - 3, button.top - 3, 
+                 button.left + self.icon_side + 3, button.top + self.icon_side + 3],
+                outline="black",
+                width=2
+            )
+    
+    def draw_pages(self, icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE) -> list[Image.Image]:
         images: list[Image.Image] = []
         current_x: int = self.left
         current_y: int = self.top
         new_image = self.base_image.copy()
+        row_count = 0
+        column_count = 0
         # SCREEN_WIDTH, SCREEN_HEIGHT
 
-        for i, row in enumerate(self.buttons):
-            for j, button in enumerate(row):
-                if icon_layout == IconLayout.SIDE_BY_SIDE:
-                    icon = button.image.resize((self.icon_width, self.icon_height))
-                    new_image.paste(icon, (current_x, current_y))
-
-                if i == self.row_index and j == self.column_index:
-                    # Draw a border around the selected icon
-                    draw = ImageDraw.Draw(new_image)
-                    draw.rectangle(
-                        [current_x - 3, current_y - 3, 
-                         current_x + self.icon_width + 3, current_y + self.icon_height + 3],
-                        outline="black",
-                        width=2
-                    )
+        for button in self.buttons:
+            icon = button.image.resize((self.icon_side, self.icon_side))
+            current_x += self.icon_space + icon.width
+            
+            if icon_layout == IconLayout.SIDE_BY_SIDE:
+                if current_x > self.right:
+                    self.column_length = column_count if self.column_length < 0 else self.column_length
+                    column_count = 0
+                    row_count += 1
+                    current_x = self.left
+                    current_y += self.icon_space + icon.height
+            else:
+                current_y += self.icon_space + icon.height
+                row_count += 1
+                column_count = 1
                 
-                current_x += self.icon_width + self.icon_space
-
-            current_x = self.left
-            current_y += self.icon_height + self.icon_space
-        return new_image
-    
-    def draw_current_selection_list(self) -> Image.Image:
-        current_x: int = self.left
-        current_y: int = self.top
-        new_image = self.base_image.copy()
-
-        for i, button in enumerate(self.buttons):
-            icon = button.image.resize((self.icon_width, self.icon_height))
+            if current_y + icon.height > SCREEN_HEIGHT - 10:
+                images.append(new_image.copy())
+                new_image = self.base_image.copy()
+                current_x: int = self.left
+                current_y: int = self.top
+                self.row_length = row_count if self.row_length < 0 else self.row_length
+                column_count = 0
+                row_count = 0
+                
             new_image.paste(icon, (current_x, current_y))
+            button.set_coordinate(current_x, current_y)
+            button.set_row(row_count)
+            button.set_column(column_count)
+            button.page = len(images) - 1
 
-            if i == self.row_index:
-                # Draw a border around the selected icon
-                draw = ImageDraw.Draw(new_image)
-                draw.rectangle(
-                    [current_x - 3, current_y - 3, 
-                     current_x + self.icon_width + 3, current_y + self.icon_height + 3],
-                    outline="black",
-                    width=2
-                )
-
-            current_x += self.icon_width + self.icon_space
-
-        return new_image
-                  
+        return images
+      
     
 
 
