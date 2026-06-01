@@ -21,8 +21,7 @@ APPLICATIONS: dict[str, UI.AppInfo] = {
     "Settings":UI.AppInfo(UI.SettingsController, "assets/screens/base/settings_basescreen.png") 
 }
 
-HOME_SCREEN_ICONS:list[list[IconInfo]] = [
-    [
+HOME_SCREEN_ICONS:list[IconInfo] = [
     IconInfo(name="EReader",
                 icon="assets/thumbnails/chosen/ereader_c.png"),
     IconInfo(name="Player",
@@ -31,7 +30,6 @@ HOME_SCREEN_ICONS:list[list[IconInfo]] = [
                 icon="assets/thumbnails/chosen/mp3_c.png"),
     IconInfo(name="Settings",
                 icon="assets/thumbnails/chosen/settings_c.png")   
-    ]
 ]
 
 class AppManager(AppController):
@@ -46,8 +44,9 @@ class AppManager(AppController):
         self.register_app_controller()
         self.icon_input_handler: IconInputHandler = IconInputHandler(HOME_SCREEN_ICONS,self.home_screen_image)
         
-        
-        self.display.display_image(self.icon_input_handler.draw_current_selection())
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
     
     def handle_event(self, event: dict):
         self.logger.info("AppManager received event: %s", event)
@@ -64,18 +63,30 @@ class AppManager(AppController):
     
     def up(self, data: dict):
         self.logger.info("AppManager received up event")
-        self.icon_input_handler.direction_change(IconInputHandler.Direction.UP)    
+        self.icon_input_handler.direction_change(IconInputHandler.Direction.UP)
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
     def down(self, data: dict):
         self.logger.info("AppManager received down event")
         self.icon_input_handler.direction_change(IconInputHandler.Direction.DOWN)
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
     
     def right(self, data: dict):
         self.logger.info("AppManager received right event")
         self.icon_input_handler.direction_change(IconInputHandler.Direction.RIGHT)
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
     
     def left(self, data: dict):
         self.logger.info("AppManager received left event")
         self.icon_input_handler.direction_change(IconInputHandler.Direction.LEFT)
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
     
     def enter(self, data: dict):
         self.logger.info("AppManager received enter event")

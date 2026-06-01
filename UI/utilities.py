@@ -18,7 +18,9 @@ from input import EventDispatcher, EventHandler, Event
 from input.dispatcher import EventHandler
 
 ICON_SIDE = 36
-ICON_SPACE = 10
+ICON_SPACE = 15
+
+COLUMN_COUNT = 5
 
 @dataclass
 class AppInfo:
@@ -210,7 +212,7 @@ class IconInputHandler:
         self.icon_side = icon_side
         self.icon_space = icon_space
         self.row_length = row_length
-        self.column_length = column_length
+        self.column_length = COLUMN_COUNT
         
         self.icon_pages: list[Image.Image] = self.draw_pages()
 
@@ -233,7 +235,7 @@ class IconInputHandler:
     def current_column_index(self) -> int:
         return self.column_index
 
-    def direction_change(self, direction: Direction, auto_draw: bool = True) -> None:
+    def direction_change(self, direction) -> None:
         if direction == IconInputHandler.Direction.UP:
             self.row_index = self.row_index - 1 if self.row_index > 0 else self.row_length - 1
         elif direction == IconInputHandler.Direction.DOWN:
@@ -242,19 +244,17 @@ class IconInputHandler:
             self.column_index = self.column_index - 1 if self.column_index > 0 else self.column_length - 1           
         elif direction == IconInputHandler.Direction.RIGHT:
             self.column_index = self.column_index + 1 if self.column_index < self.column_length - 1 else 0
-
-        if auto_draw:
-            self.draw_current_selection()
     
     def get_current_selection(self) -> IconInfo | None:
         for button in self.buttons:
             if button.row == self.row_index and button.column == self.column_index:
                 return button
         return None
-    def draw_current_selection(self):
+    def draw_current_selection(self) -> Image.Image | None:
         button = self.get_current_selection()
+        
         if button is not None:
-            page_image = self.icon_pages[button.page]
+            page_image: Image.Image = self.icon_pages[button.page].copy()
             draw = ImageDraw.Draw(page_image)
             draw.rectangle(
                 [button.left - 3, button.top - 3, 
@@ -262,6 +262,9 @@ class IconInputHandler:
                 outline="black",
                 width=2
             )
+            return page_image
+        
+        return None
     
     def draw_pages(self, icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE) -> list[Image.Image]:
         images: list[Image.Image] = []
@@ -270,15 +273,14 @@ class IconInputHandler:
         new_image = self.base_image.copy()
         row_count = 0
         column_count = 0
-        # SCREEN_WIDTH, SCREEN_HEIGHT
-
+        page: int = 0
+        test: list[IconInfo] = self.buttons
         for button in self.buttons:
             icon = button.image.resize((self.icon_side, self.icon_side))
-            current_x += self.icon_space + icon.width
+            # current_x += self.icon_space + icon.width
             
             if icon_layout == IconLayout.SIDE_BY_SIDE:
-                if current_x > self.right:
-                    self.column_length = column_count if self.column_length < 0 else self.column_length
+                if column_count > self.column_length - 1:      # current_x > self.right:
                     column_count = 0
                     row_count += 1
                     current_x = self.left
@@ -293,16 +295,21 @@ class IconInputHandler:
                 new_image = self.base_image.copy()
                 current_x: int = self.left
                 current_y: int = self.top
-                self.row_length = row_count if self.row_length < 0 else self.row_length
+                self.row_length = row_count + 1
                 column_count = 0
                 row_count = 0
+                page += 1
                 
             new_image.paste(icon, (current_x, current_y))
             button.set_coordinate(current_x, current_y)
             button.set_row(row_count)
             button.set_column(column_count)
-            button.page = len(images) - 1
+            button.page = page
+            column_count += 1
+            current_x += self.icon_space + icon.width
 
+        if new_image not in images:
+            images.append(new_image.copy())
         return images
       
     
