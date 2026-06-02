@@ -191,7 +191,9 @@ class IconInputHandler:
         
     def __init__(self,
                  buttons: list[IconInfo],
-                 base_image: Image.Image, 
+                 base_image: Image.Image,
+                 *,
+                 icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE,
                  row_index: int = 0, 
                  column_index: int = 0,
                  top: int = TOP_FOR_ICONS,
@@ -199,8 +201,7 @@ class IconInputHandler:
                  right: int = RIGHT_MARGIN,
                  icon_side: int = ICON_SIDE,
                  icon_space: int = ICON_SPACE,
-                 row_length: int = 0,
-                 column_length: int = 0):
+                 row_length: int = 0):
         
         self.buttons = buttons
         self.row_index = row_index
@@ -214,9 +215,9 @@ class IconInputHandler:
         self.row_length = row_length
         self.column_length = COLUMN_COUNT
         
+        self.icon_layout = icon_layout
+        
         self.icon_pages: list[Image.Image] = self.draw_pages()
-
-        # self.draw_current_selection()
 
     @property
     def current_button(self) -> IconInfo | None:
@@ -235,6 +236,7 @@ class IconInputHandler:
     def current_column_index(self) -> int:
         return self.column_index
 
+    # TODO: bug when icon is last
     def direction_change(self, direction) -> None:
         if direction == IconInputHandler.Direction.UP:
             self.row_index = self.row_index - 1 if self.row_index > 0 else self.row_length - 1
@@ -250,6 +252,7 @@ class IconInputHandler:
             if button.row == self.row_index and button.column == self.column_index:
                 return button
         return None
+    
     def draw_current_selection(self) -> Image.Image | None:
         button = self.get_current_selection()
         
@@ -266,30 +269,28 @@ class IconInputHandler:
         
         return None
     
-    def draw_pages(self, icon_layout: IconLayout = IconLayout.SIDE_BY_SIDE) -> list[Image.Image]:
+    def draw_pages(self) -> list[Image.Image]:
         images: list[Image.Image] = []
         current_x: int = self.left
         current_y: int = self.top
         new_image = self.base_image.copy()
-        row_count = 0
+        row_count = 0 
         column_count = 0
         page: int = 0
-        test: list[IconInfo] = self.buttons
+        
         for button in self.buttons:
-            icon = button.image.resize((self.icon_side, self.icon_side))
-            # current_x += self.icon_space + icon.width
+            icon = button.image
             
-            if icon_layout == IconLayout.SIDE_BY_SIDE:
-                if column_count > self.column_length - 1:      # current_x > self.right:
-                    column_count = 0
-                    row_count += 1
-                    current_x = self.left
-                    current_y += self.icon_space + icon.height
-            else:
-                current_y += self.icon_space + icon.height
-                row_count += 1
-                column_count = 1
-                
+            if self.icon_layout == IconLayout.SIDE_BY_SIDE:
+                icon = button.image.resize((self.icon_side, self.icon_side))       
+                            
+            new_image.paste(icon, (current_x, current_y))
+            button.set_coordinate(current_x, current_y)
+            button.set_row(row_count)
+            button.set_column(column_count)
+            button.page = page
+            column_count += 1            
+            
             if current_y + icon.height > SCREEN_HEIGHT - 10:
                 images.append(new_image.copy())
                 new_image = self.base_image.copy()
@@ -299,14 +300,20 @@ class IconInputHandler:
                 column_count = 0
                 row_count = 0
                 page += 1
-                
-            new_image.paste(icon, (current_x, current_y))
-            button.set_coordinate(current_x, current_y)
-            button.set_row(row_count)
-            button.set_column(column_count)
-            button.page = page
-            column_count += 1
-            current_x += self.icon_space + icon.width
+                continue
+            
+            if self.icon_layout == IconLayout.SIDE_BY_SIDE:
+                current_x += self.icon_space + icon.width
+                if column_count > self.column_length - 1:      # current_x > self.right:
+                    column_count = 0
+                    row_count += 1
+                    current_x = self.left
+                    current_y += self.icon_space + icon.height
+            else:
+                current_y += self.icon_space + icon.height
+                current_x: int = self.left
+                row_count += 1
+                column_count = 1
 
         if new_image not in images:
             images.append(new_image.copy())

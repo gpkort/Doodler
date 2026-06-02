@@ -80,8 +80,7 @@ def main():
     root = tk.Tk()
     root.title("Doodler")
     appManager: UI.AppManager = UI.AppManager(TkDisplayDriver(root), TkButtonInputHandler(root), exit_program)
-    
-    
+
     root.mainloop()
     print("Exited main loop, quitting:")
     

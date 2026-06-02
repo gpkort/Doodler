@@ -60,7 +60,7 @@ class EventDispatcher(ABC):
     def _dispatch(self, event:Event, data: dict[str, Any] | None = None): #ignore 
         if data is None:
             data = {}
-            
+        
         for handler in self.event_handlers.values():
             if handler.event_type == event:
                 handler.handler(data)

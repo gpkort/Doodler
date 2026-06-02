@@ -2,10 +2,10 @@ from typing import Callable
 from PIL import Image, ImageDraw, ImageFont
 
 from UI import AppController
-from display import DisplayDriver, fontmanager, SCREEN_HEIGHT, SCREEN_WIDTH, LEFT_MARGIN
+from display import DisplayDriver, fontmanager, SCREEN_HEIGHT, SCREEN_WIDTH
 from input.dispatcher import EventDispatcher
 from data import Book, get_books
-from UI import IconInfo, IconInputHandler
+from UI import IconInfo, IconInputHandler, IconLayout
 
 class EReaderController(AppController):
     def __init__(self, display: DisplayDriver, 
@@ -15,37 +15,34 @@ class EReaderController(AppController):
         super().__init__(display, event_dispatcher, exit_callback, home_screen_image)
 
         self.books: list[Book] = []
-        self.create_book_buttons()
-        self.icon_input_handler: IconInputHandler = IconInputHandler(self.create_book_buttons(), 
-                                                                     self.home_screen_image)
+        self.icon_input_handler: IconInputHandler = IconInputHandler(self.create_book_buttons(),
+                                                                     self.home_screen_image,
+                                                                     icon_layout=IconLayout.VERTICAL_LIST)
+        
+        img: Image.Image | None = self.icon_input_handler.draw_current_selection()
+        if img:
+            self.display.display_image(img)
         
     @staticmethod
     def get_name() -> str:
         return "E-Reader"
     
-    def create_book_buttons(self) -> list[list[IconInfo]]:
+    def create_book_buttons(self) -> list[IconInfo]:
         self.books = get_books()
-        icons: list[list[IconInfo]] = []
-        current_y: int = 60  # Starting y position for the first book
-
+        icons: list[IconInfo] = []
+        
         for book in self.books:
-            if current_y == 60:
-                icons.append([])
             font = fontmanager.medium_font
             left, top, right, bottom = font.getbbox(book.title)
             height = bottom - top
             text_x = (SCREEN_WIDTH - (right - left)) / 2
-            list_image: Image.Image = Image.new("1", (SCREEN_WIDTH, int(height + 10)), color="white")
+            list_image: Image.Image = Image.new("1", (SCREEN_WIDTH -10, int(height + 10)), color="white")
             draw = ImageDraw.Draw(list_image)
             draw.text((text_x, 5), book.title, font=font, fill=0)
-            current_y += int(height + 10)
-
-            icons[0].append(IconInfo(book.title, list_image))
-
-            if current_y + int(height + 10) > SCREEN_HEIGHT - 20:
-                current_y = 60
-
-
+            
+            icons.append(IconInfo(name=book.title, 
+                                   icon=list_image))
+            
         return icons
         
 

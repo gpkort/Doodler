@@ -1,6 +1,6 @@
-__all__ = ["home", "audiobook", "e_reader", "settings", "player", "utilities"]
+__all__ = [ "audiobook", "e_reader", "settings", "player", "utilities"]
 
-from .utilities import AppController, AppInfo, IconInfo, IconInputHandler
+from .utilities import AppController, AppInfo, IconInfo, IconInputHandler, IconLayout
 from .audiobook import AudioBookController
 from .e_reader import EReaderController
 from .settings import SettingsController
