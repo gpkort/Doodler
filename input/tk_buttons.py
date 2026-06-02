@@ -8,6 +8,7 @@ class TkButtonInputHandler(EventDispatcher):
         self.create_buttons()
 
     def create_buttons(self):
+        print(f"Creating buttons for TkButtonInputHandler")
         button_frame = tk.Frame(self.root)
         button_frame.pack(pady=20)
         

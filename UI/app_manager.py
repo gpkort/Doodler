@@ -34,8 +34,17 @@ HOME_SCREEN_ICONS:list[IconInfo] = [
 
 class AppManager(AppController):
 
-    def __init__(self, display: DisplayDriver,  event_dispatcher: EventDispatcher, exit_callback: Callable[[], None]):
-        super().__init__(display, event_dispatcher, exit_callback, home_screen_image=Image.open(BASE_SCREEN_PATH))
+    def __init__(self, 
+                 display: DisplayDriver,
+                 event_dispatcher: EventDispatcher,
+                 exit_callback: Callable[[], None],
+                 parent: AppController | None = None):
+
+        super().__init__(display, 
+                         event_dispatcher, 
+                         exit_callback, 
+                         home_screen_image=Image.open(BASE_SCREEN_PATH), 
+                         parent=parent)
 
         self.font_manager = fontmanager
         self.current_app = None
@@ -111,7 +120,8 @@ class AppManager(AppController):
         self.current_app = app.app_class(self.display, 
                                          self.event_dispatcher, 
                                          self.exit_callback,
-                                         home_screen_image=img) # type: ignore
+                                         home_screen_image=img,
+                                         parent=self)
         
        
         

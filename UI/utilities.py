@@ -1,10 +1,13 @@
+
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import logging
 from tkinter import Event
-from typing import Callable
+from typing import Callable, Any
 from dataclasses import dataclass
-import uuid
 from enum import Enum
+
 
 from PIL import Image, ImageDraw
 
@@ -15,7 +18,6 @@ from display import (DisplayDriver,
                      SCREEN_WIDTH,
                      SCREEN_HEIGHT)
 from input import EventDispatcher, EventHandler, Event
-from input.dispatcher import EventHandler
 
 ICON_SIDE = 36
 ICON_SPACE = 15
@@ -32,39 +34,41 @@ class AppController(ABC):
                  event_dispatcher: EventDispatcher,
                  exit_callback: Callable[[], None],   
                  home_screen_image: Image.Image | None = None,
-                 data:dict | None = None):
+                 parent: AppController | None = None,
+                 data:dict[str, Any] | None = None):
         
         self.display: DisplayDriver = display
         self.event_dispatcher: EventDispatcher = event_dispatcher
         self.exit_callback: Callable[[], None] = exit_callback
-        self.event_uuids: list[uuid.UUID] = []
+        self.event_ids: list[int] = []
         self.home_screen_image: Image.Image = home_screen_image or Image.new("1", 
                                                                              (SCREEN_WIDTH, SCREEN_HEIGHT), 
                                                                              color=1)  # Default to white background
         self.logger = logging.getLogger(self.__class__.__name__)
         self.data: dict = data or {}
+        self.parent: AppController = parent or self
         
-        
-    
+    def __del__(self) -> None:
+        self.unregister_app_controller()
     
     def draw(self, image: Image.Image):
         self.display.display_image(image)  # type: ignore
         
     def register_app_controller(self) :
-        self.event_uuids.clear()
+        self.event_ids.clear()
         
-        self.event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward))
-        self.event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward))
-        self.event_dispatcher.register_handler(EventHandler(Event.UP, self.up))
-        self.event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down))
-        self.event_dispatcher.register_handler(EventHandler(Event.LEFT, self.left))
-        self.event_dispatcher.register_handler(EventHandler(Event.RIGHT, self.right))
-        self.event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter))
-        self.event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.FORWARD, self.forward)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.BACKWARD, self.backward)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.UP, self.up)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.DOWN, self.down)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.LEFT, self.left)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.RIGHT, self.right)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.ENTER, self.enter)))
+        self.event_ids.append(self.event_dispatcher.register_handler(EventHandler(Event.QUIT, self.quit)))
     
     def unregister_app_controller(self):
         self.event_dispatcher.unregister_all_handlers()
-        self.event_uuids.clear()
+        self.event_ids.clear()
        
     @abstractmethod
     def handle_event(self, event: dict):
@@ -127,15 +131,19 @@ class IconInfo():
         
         if isinstance(icon, str):
             self.icon_path = icon
-            self.img = Image.open(icon)
+            self._img = Image.open(icon)
             
         else:
-            self.img = icon
+            self._img = icon
 
     @property
     def image(self) -> Image.Image:
-        return self.img
+        return self._img
     
+    @image.setter
+    def image(self, value: Image.Image):
+        self._img = value
+
     @property
     def top(self) -> int:
         return self._top
@@ -261,7 +269,7 @@ class IconInputHandler:
             draw = ImageDraw.Draw(page_image)
             draw.rectangle(
                 [button.left - 3, button.top - 3, 
-                 button.left + self.icon_side + 3, button.top + self.icon_side + 3],
+                 button.left + button.image.width + 3, button.top + button.image.height + 3],
                 outline="black",
                 width=2
             )
@@ -278,11 +286,12 @@ class IconInputHandler:
         column_count = 0
         page: int = 0
         
-        for button in self.buttons:
-            icon = button.image
+        for button in self.buttons:           
             
             if self.icon_layout == IconLayout.SIDE_BY_SIDE:
-                icon = button.image.resize((self.icon_side, self.icon_side))       
+                button.image = button.image.resize((self.icon_side, self.icon_side))
+
+            icon = button.image
                             
             new_image.paste(icon, (current_x, current_y))
             button.set_coordinate(current_x, current_y)
