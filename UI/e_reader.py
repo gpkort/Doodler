@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from UI import AppController
 from display import DisplayDriver, fontmanager, SCREEN_HEIGHT, SCREEN_WIDTH
 from input import EventDispatcher, EventHandler, Event
-from data import Book, get_books
+from Applications.reader import Book, get_library_books
 from UI import IconInfo, IconInputHandler, IconLayout
 
 class EReaderController(AppController):
@@ -30,7 +30,7 @@ class EReaderController(AppController):
         return "E-Reader"
     
     def create_book_buttons(self) -> list[IconInfo]:
-        self.books = get_books()
+        self.books = get_library_books()
         icons: list[IconInfo] = []
         
         for book in self.books:
