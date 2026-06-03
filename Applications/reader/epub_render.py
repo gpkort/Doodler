@@ -161,10 +161,6 @@ class TextRenderer:
             
         if self.shelf_path is not None and os.path.exists(self.shelf_path):
             try:
-                # Check timestamp
-                if os.path.getmtime(cache_path) < os.path.getmtime(self.epub_path):
-                    return False
-                
                 with open(cache_path, 'rb') as f:
                     data = pickle.load(f)
                     self.pages = data['pages']

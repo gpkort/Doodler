@@ -7,18 +7,14 @@ THUMBNAIL_PATH = "Books/thumbnails/"
 LIBRARY_PATH = "Books/library/"
 BOOK_SHELF_PATH = "Books/shelf/"
 
-@dataclass
-class BookshelfItem:
-    title: str
-    author: str
-    path: str
-    cover: Image.Image
 
 @dataclass
 class Book:
     id: int
     title: str
+    author: str
     epub_path: str
+    cache_path: str
 
 def get_library_books() -> list[Book]:
     conn = sqlite3.connect(DATABASE_PATH)
@@ -27,7 +23,7 @@ def get_library_books() -> list[Book]:
     rows = cursor.fetchall()
     conn.close()
     
-    books = [Book(id=row[0], title=row[1], epub_path=row[2]) for row in rows]
+    books = [Book(id=row[0], title=row[1], author=row[2], epub_path=row[3], cache_path=row[4]) for row in rows]
     return books
 
 
