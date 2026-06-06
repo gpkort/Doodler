@@ -8,15 +8,14 @@ import ebooklib
 from ebooklib import epub
 from PIL import Image, ImageDraw, ImageFont
 import logging
-import os
+from os import path
 import re
 from io import BytesIO
 from typing import List, NamedTuple, Union
 from bs4 import BeautifulSoup, element, Tag
 import pickle
-from Applications.reader import BookshelfItem
+from utils import Book
 
-from display import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Optional: SVG support (requires cairosvg)
 try:
@@ -24,7 +23,8 @@ try:
     SVG_SUPPORT = True
 except ImportError:
     SVG_SUPPORT = False
-
+except OSError: 
+    SVG_SUPPORT = False
 
 
 # Define a token structure for rich text
@@ -52,15 +52,12 @@ class TextRenderer:
     EPUB renderer using direct Pillow text drawing with Rich Text support.
     """
 
-    def __init__(self, *, use_cache:bool=True, shelf_path: str="", 
-                 width: int = SCREEN_WIDTH, height: int = SCREEN_HEIGHT, 
-                 zoom_factor: float = 1.0):
+    def __init__(self, width: int , height: int, *, use_cache:bool=True, zoom_factor: float = 1.0):
         
         self.logger = logging.getLogger(__name__)
         self.width = width
         self.height = height
         self.zoom_factor = zoom_factor
-        self.shelf_path = shelf_path
 
         # Layout settings
         self.margin_left = 20
@@ -84,14 +81,8 @@ class TextRenderer:
         self._load_fonts()
         
         # Book content
-        self.book = None
-        self.pages = []  # List of pages, each page is a list of render items (text or image)
-        self.page_count = 0
-        self.images = {}  # Cache for EPUB images: {src_path: PIL.Image}
-        self.custom_fonts = {}  # Cache for EPUB embedded fonts: {font_name: font_path}
-
+        self.book: Book | None = None
         self.use_cache = use_cache
-        self.current_cache: BookshelfItem | None = None
         
 
     def _load_fonts(self):
@@ -124,7 +115,7 @@ class TextRenderer:
         # Find first available font family
         font_paths = None
         for candidate in font_candidates:
-            if os.path.exists(candidate['normal']):
+            if path.exists(candidate['normal']):
                 font_paths = candidate
                 self.logger.info(f"Using font: {candidate['normal']}")
                 break
@@ -137,13 +128,13 @@ class TextRenderer:
 
         # Load fonts with fallback to normal if variants don't exist
         def load_font(style, size):
-            path = font_paths.get(style, font_paths['normal'])
-            if not os.path.exists(path):
-                path = font_paths['normal']  # Fallback to normal
+            font_path = font_paths.get(style, font_paths['normal'])
+            if not path.exists(font_path):
+                font_path = font_paths['normal']  # Fallback to normal
             try:
-                return ImageFont.truetype(path, size)
+                return ImageFont.truetype(font_path, size)
             except Exception as e:
-                self.logger.warning(f"Failed to load {path}: {e}")
+                self.logger.warning(f"Failed to load {font_path}: {e}")
                 return ImageFont.load_default()
 
         self.fonts['normal'] = load_font('normal', self.base_font_size)
@@ -156,16 +147,17 @@ class TextRenderer:
     def _load_cache(self) -> bool:
         """Try to load layout from cache"""
         
-        if not self.use_cache:
+        if not self.use_cache or self.book is None:
             return False
-            
-        if self.shelf_path is not None and os.path.exists(self.shelf_path):
+        
+        c_path = path.join(self.book.cache_path, str(self.book.id))
+        if path.exists(c_path):
             try:
-                with open(cache_path, 'rb') as f:
+                with open(c_path, 'rb') as f:
                     data = pickle.load(f)
                     self.pages = data['pages']
                     self.page_count = data['page_count']
-                self.logger.info(f"Loaded layout from cache: {cache_path}")
+                self.logger.info(f"Loaded layout from cache: {c_path}")
                 return True
             except Exception as e:
                 self.logger.warning(f"Failed to load cache: {e}")
@@ -173,30 +165,31 @@ class TextRenderer:
 
     def _save_cache(self):
         """Save layout to cache"""
+        if not self.use_cache or self.book is None:
+            return
+        
         try:
-            cache_path = self.current_cache
-            with open(cache_path, 'wb') as f:
-                pickle.dump({
-                    'pages': self.pages,
-                    'page_count': self.page_count
-                }, f)
-            self.logger.info(f"Saved layout to cache: {cache_path}")
+            c_path = path.join(self.book.cache_path, str(self.book.id))
+            with open(c_path, 'wb') as f:
+                pickle.dump(self.book.to_dict(), f)
+            self.logger.info(f"Saved layout to cache: {c_path}")
         except Exception as e:
             self.logger.warning(f"Failed to save cache: {e}")
 
-    def load_epub(self, path:str, book_name:str):
-        self.logger.info(f"Loading EPUB: {path}")
-        # self.epub_path = path
+    def load_epub(self, book:Book, use_cache: bool = True):
+        self.logger.info(f"Loading EPUB: {book.epub_path}")
+        self.use_cache = use_cache
+        self.book = book
 
         # Try cache first
         if self._load_cache():
             # Still need to load the book for images and fonts
-            self.book = epub.read_epub(path)
+            self.book.book = epub.read_epub(book.epub_path)
             self._extract_images()
             self._extract_fonts()
             return
 
-        self.book = epub.read_epub(path)
+        self.book.book = epub.read_epub(book.epub_path)
 
        
 
@@ -206,15 +199,11 @@ class TextRenderer:
 
         all_tokens = []
 
-        docs = list(self.book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
+        docs = list(self.book.book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
         total_docs = len(docs)
         
         for idx, item in enumerate(docs):
-            if self.progress_callback:
-                # Map chapter parsing from 15% to 80%
-                percent_done = 15.0 + (65.0 * (idx / max(1, total_docs)))
-                self.progress_callback(percent_done, f"Parsing chapter {idx + 1} of {total_docs}...")
-
+           
             try:
                 content = item.get_content()
                 try:
@@ -229,8 +218,7 @@ class TextRenderer:
             except Exception as e:
                 self.logger.warning(f"Chapter error: {e}")
 
-        if self.progress_callback:
-            self.progress_callback(85.0, "Formatting pages...")
+       
 
         self._reflow_pages(all_tokens)
         self._save_cache()
@@ -238,7 +226,9 @@ class TextRenderer:
 
     def _extract_images(self):
         """Extract all images from EPUB and cache them (including SVG conversion)"""
-        for item in self.book.get_items_of_type(ebooklib.ITEM_IMAGE):
+        if not self.book or not self.book.book:
+            return
+        for item in self.book.book.get_items_of_type(ebooklib.ITEM_IMAGE):
             try:
                 img_name = item.get_name()
                 img_data = item.get_content()
@@ -248,8 +238,8 @@ class TextRenderer:
                     if SVG_SUPPORT:
                         try:
                             # Convert SVG to PNG using cairosvg
-                            png_data = cairosvg.svg2png(bytestring=img_data, output_width=800)
-                            img = Image.open(BytesIO(png_data))
+                            png_data = cairosvg.svg2png(bytestring=img_data, output_width=800) #type: ignore
+                            img = Image.open(BytesIO(png_data))                                 #type: ignore
                             self.logger.debug(f"Converted SVG to raster: {img_name}")
                         except Exception as e:
                             self.logger.warning(f"Failed to convert SVG {img_name}: {e}")
@@ -271,18 +261,20 @@ class TextRenderer:
                     img = img.convert('RGB')
 
                 # Store with filename as key
-                self.images[img_name] = img
+                self.book.images[img_name] = img
                 self.logger.debug(f"Extracted image: {img_name} ({img.size[0]}x{img.size[1]})")
             except Exception as e:
                 self.logger.warning(f"Failed to extract image {item.get_name()}: {e}")
 
-        self.logger.info(f"Extracted {len(self.images)} images from EPUB")
+        self.logger.info(f"Extracted images from EPUB")
 
     def _extract_fonts(self):
         """Extract embedded fonts from EPUB"""
         import tempfile
-
-        for item in self.book.get_items():
+        if not self.book or not self.book.book:
+            return
+        
+        for item in self.book.book.get_items():
             # Check if this is a font file (TTF, OTF, WOFF, etc.)
             item_name = item.get_name().lower()
             if any(item_name.endswith(ext) for ext in ['.ttf', '.otf', '.woff', '.woff2']):
@@ -295,27 +287,30 @@ class TextRenderer:
                         continue
 
                     # Save TTF/OTF to temp file (PIL needs file path, not bytes)
-                    temp_font = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(item_name)[1])
+                    temp_font = tempfile.NamedTemporaryFile(delete=False, suffix=path.splitext(item_name)[1])
                     temp_font.write(font_data)
                     temp_font.close()
 
                     # Extract font family name from filename
-                    font_name = os.path.splitext(os.path.basename(item_name))[0]
-                    self.custom_fonts[font_name] = temp_font.name
+                    font_name = path.splitext(path.basename(item_name))[0]
+                    self.book.custom_fonts[font_name] = temp_font.name
 
                     self.logger.debug(f"Extracted font: {font_name} from {item.get_name()}")
                 except Exception as e:
                     self.logger.warning(f"Failed to extract font {item.get_name()}: {e}")
 
-        if self.custom_fonts:
-            self.logger.info(f"Extracted {len(self.custom_fonts)} custom fonts from EPUB")
+        if self.book.custom_fonts:
+            self.logger.info(f"Extracted {len(self.book.custom_fonts)} custom fonts from EPUB")
             # Try to use custom fonts if available
             self._try_load_custom_fonts()
 
     def _try_load_custom_fonts(self):
         """Try to load custom EPUB fonts for rendering"""
         # Look for fonts that might replace our default fonts
-        for font_name, font_path in self.custom_fonts.items():
+        if not self.book:
+            return
+        
+        for font_name, font_path in self.book.custom_fonts.items():
             font_name_lower = font_name.lower()
 
             # Try to match to our font styles
@@ -331,7 +326,7 @@ class TextRenderer:
                 elif 'italic' in font_name_lower:
                     self.fonts['italic'] = ImageFont.truetype(font_path, self.base_font_size)
                     self.logger.info(f"Using custom italic font: {font_name}")
-                elif 'regular' in font_name_lower or 'normal' in font_name_lower or len(self.custom_fonts) == 1:
+                elif 'regular' in font_name_lower or 'normal' in font_name_lower or len(self.book.custom_fonts) == 1:
                     # Use as default font if it's marked as regular/normal or it's the only font
                     self.fonts['normal'] = ImageFont.truetype(font_path, self.base_font_size)
                     self.logger.info(f"Using custom normal font: {font_name}")
@@ -339,6 +334,10 @@ class TextRenderer:
                 self.logger.warning(f"Failed to load custom font {font_name}: {e}")
 
     def _parse_html(self, html: str) -> List[Union[TextToken, ImageToken, TableToken]]:
+
+        if not self.book:
+            return []
+
         """Parse HTML into flat list of tokens with styles"""
         soup = BeautifulSoup(html, 'html.parser')
         tokens = []
@@ -381,13 +380,13 @@ class TextRenderer:
                     src = node.get('src', '')
                     if src:
                         # Normalize path (remove ../ and leading /)
-                        img_path = src.split('/')[-1]  # Get just the filename
+                        img_path = src.split('/')[-1]  # Get just the filename #type: ignore
 
                         # Try to find image in cache
                         img = None
-                        for key in self.images.keys():
+                        for key in self.book.images.keys(): #type: ignore
                             if key.endswith(img_path) or img_path in key:
-                                img = self.images[key]
+                                img = self.book.images[key] #type: ignore
                                 break
 
                         if img:
@@ -406,12 +405,12 @@ class TextRenderer:
 
                 # Check for CSS text-align in style attribute
                 node_style = node.get('style', '')
-                if 'text-align' in node_style:
-                    if 'center' in node_style:
+                if 'text-align' in node_style:      #type: ignore
+                    if 'center' in node_style:      #type: ignore
                         align = 'center'
-                    elif 'right' in node_style:
+                    elif 'right' in node_style:      #type: ignore
                         align = 'right'
-                    elif 'left' in node_style:
+                    elif 'left' in node_style:      #type: ignore
                         align = 'left'
 
                 # Check for center tag
@@ -485,11 +484,7 @@ class TextRenderer:
             count += 1
             if count % 1000 == 0:
                 self.logger.debug(f"Reflow progress: {count}/{total_tokens}")
-                if self.progress_callback:
-                    # Reflow maps from 85% to 99%
-                    percent_done = 85.0 + (14.0 * (count / max(1, total_tokens)))
-                    self.progress_callback(percent_done, f"Formatting {count}/{total_tokens}...")
-
+               
             # Handle table tokens
             if isinstance(token, TableToken):
                 # Finish current line first
