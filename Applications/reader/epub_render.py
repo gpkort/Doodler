@@ -155,8 +155,20 @@ class TextRenderer:
             try:
                 with open(c_path, 'rb') as f:
                     data = pickle.load(f)
-                    self.pages = data['pages']
-                    self.page_count = data['page_count']
+                    self.book.id = data['id']
+                    self.book.title = data['title']
+                    self.book.author = data['author']
+                    self.book.epub_path = data['epub_path']
+                    self.book.cache_path = data['cache_path']
+                    self.book.current_page = data['current_page']
+                    self.book.pages = data['pages']
+                    self.book.page_count = data['page_count']
+                    self.book.images = data.get('images', {})
+                    self.book.custom_fonts = data.get('custom_fonts', {})
+                    self.book.book = data['book']
+                    
+                    
+                    
                 self.logger.info(f"Loaded layout from cache: {c_path}")
                 return True
             except Exception as e:
@@ -176,7 +188,7 @@ class TextRenderer:
         except Exception as e:
             self.logger.warning(f"Failed to save cache: {e}")
 
-    def load_epub(self, book:Book, use_cache: bool = True):
+    def load_epub(self, book:Book, use_cache: bool = True) -> epub.EpubBook | None:
         self.logger.info(f"Loading EPUB: {book.epub_path}")
         self.use_cache = use_cache
         self.book = book
@@ -187,7 +199,7 @@ class TextRenderer:
             self.book.book = epub.read_epub(book.epub_path)
             self._extract_images()
             self._extract_fonts()
-            return
+            return self.book.book
 
         self.book.book = epub.read_epub(book.epub_path)
 
@@ -223,6 +235,8 @@ class TextRenderer:
         self._reflow_pages(all_tokens)
         self._save_cache()
         self.logger.info(f"Loaded EPUB: {self.page_count} pages")
+        
+        return self.book.book
 
     def _extract_images(self):
         """Extract all images from EPUB and cache them (including SVG conversion)"""
@@ -450,7 +464,12 @@ class TextRenderer:
     def _reflow_pages(self, tokens: List[TextToken]):
         """Reflow tokens into pages based on width/height"""
         self.logger.info(f"Reflowing {len(tokens)} tokens...")
-        self.pages = []
+        
+        if self.book is None:
+            self.logger.error("No book loaded for reflowing pages")
+            return
+        
+        self.book.pages = []
         current_page = []
         current_y = self.margin_top
         current_x = self.margin_left + self.paragraph_indent # Start indented
@@ -465,7 +484,7 @@ class TextRenderer:
         def finish_line(line_items, y, h):
             nonlocal current_y, current_page
             if y + h > self.height - self.margin_bottom:
-                self.pages.append(current_page)
+                self.book.pages.append(current_page) #type: ignore
                 current_page = []
                 current_y = self.margin_top
                 y = current_y
@@ -537,7 +556,7 @@ class TextRenderer:
                 # Check if image fits on current page
                 if current_y + new_h > self.height - self.margin_bottom:
                     # Start new page
-                    self.pages.append(current_page)
+                    self.book.pages.append(current_page)  #     #type: ignore
                     current_page = []
                     current_y = self.margin_top
 
