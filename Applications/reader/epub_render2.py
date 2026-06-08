@@ -14,6 +14,7 @@ from io import BytesIO
 from typing import List, NamedTuple, Union
 from bs4 import BeautifulSoup, element, Tag
 import pickle
+from dataclasses import dataclass
 from utils import Book
 
 
@@ -26,6 +27,22 @@ except ImportError:
 except OSError: 
     SVG_SUPPORT = False
 
+
+DEFAULT_HEIGHT:int = 800
+DEFAULT_WIDTH:int = 480
+
+@dataclass
+class LayoutSetting:
+    margin_left: int = 10
+    margin_right: int = 10
+    margin_top: int = 30
+    margin_bottom: int = 10
+    line_spacing: float = 1.3
+    paragraph_spacing: int = 5
+    paragraph_indent: int = 20
+    base_font_size: int = 14
+    header_font_size: int = 20
+    zoom_factor: float = 1.0
 
 # Define a token structure for rich text
 class TextToken(NamedTuple):
@@ -47,6 +64,62 @@ class TableToken(NamedTuple):
     max_width: int  # Maximum width for table
     new_paragraph: bool = True
 
+def load_fonts(base_font_size: int, header_font_size: int, logger=None):
+        """Load specific TrueType fonts for styles"""
+        # Font search paths with proper file names
+        font_candidates = [
+            # DejaVu Serif (common on Raspberry Pi)
+            {
+                'normal': '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+                'bold': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
+                'italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf',
+                'bold_italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf',
+            },
+            # Liberation Serif
+            {
+                'normal': '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+                'bold': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+                'italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf',
+                'bold_italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf',
+            },
+            # Windows fonts
+            {
+                'normal': 'C:/Windows/Fonts/times.ttf',
+                'bold': 'C:/Windows/Fonts/timesbd.ttf',
+                'italic': 'C:/Windows/Fonts/timesi.ttf',
+                'bold_italic': 'C:/Windows/Fonts/timesbi.ttf',
+            },
+        ]
+
+        # Find first available font family
+        font_paths = None
+        for candidate in font_candidates:
+            if path.exists(candidate['normal']):
+                font_paths = candidate
+                break
+
+        if not font_paths:
+            default = ImageFont.load_default()
+            return
+
+        # Load fonts with fallback to normal if variants don't exist
+        def load_font(style, size):
+            font_path = font_paths.get(style, font_paths['normal'])
+            if not path.exists(font_path):
+                font_path = font_paths['normal']  # Fallback to normal
+            try:
+                return ImageFont.truetype(font_path, size)
+            except Exception as e:
+                return ImageFont.load_default()
+
+        self.fonts['normal'] = load_font('normal', self.base_font_size)
+        self.fonts['bold'] = load_font('bold', self.base_font_size)
+        self.fonts['italic'] = load_font('italic', self.base_font_size)
+        self.fonts['bold_italic'] = load_font('bold_italic', self.base_font_size)
+        self.fonts['h1'] = load_font('bold', self.header_font_size)
+        self.fonts['h2'] = load_font('bold', int(self.header_font_size * 0.9))
+    
+
 class TextRenderer:
     """
     EPUB renderer using direct Pillow text drawing with Rich Text support.
@@ -55,8 +128,8 @@ class TextRenderer:
     def __init__(self, width: int , height: int, *, use_cache:bool=True, zoom_factor: float = 1.0):
         
         self.logger = logging.getLogger(__name__)
-        self.width = width
-        self.height = height
+        # self.width = width
+        # self.height = height
         self.zoom_factor = zoom_factor
 
         # Layout settings
@@ -71,23 +144,23 @@ class TextRenderer:
         # Font sizes
         # self.base_font_size = int(18 * zoom_factor)
         # self.header_font_size = int(24 * zoom_factor)
-        self.base_font_size = int(14 * zoom_factor)
-        self.header_font_size = int(20 * zoom_factor)
+        # self.base_font_size = int(14 * zoom_factor)
+        # self.header_font_size = int(20 * zoom_factor)
         
         # Calculate text area
-        self.text_width = width - self.margin_left - self.margin_right
-        self.text_height = height - self.margin_top - self.margin_bottom
+        # self.text_width = width - self.margin_left - self.margin_right
+        # self.text_height = height - self.margin_top - self.margin_bottom
         
-        # Load fonts map
-        self.fonts = {}
-        self._load_fonts()
+        # # Load fonts map
+        # self.fonts = {}
+        # self._load_fonts()
         
-        # Book content
-        self.book: Book | None = None
-        self.use_cache = use_cache
+        # # Book content
+        # self.book: Book | None = None
+        # self.use_cache = use_cache
         
 
-    def _load_fonts(self):
+    def load_fonts(self):
         """Load specific TrueType fonts for styles"""
         # Font search paths with proper file names
         font_candidates = [
