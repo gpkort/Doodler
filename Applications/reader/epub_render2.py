@@ -64,9 +64,12 @@ class TableToken(NamedTuple):
     max_width: int  # Maximum width for table
     new_paragraph: bool = True
 
-def load_fonts(base_font_size: int, header_font_size: int, logger=None):
+def load_fonts(base_font_size: int, header_font_size: int) -> dict[str, ImageFont.ImageFont | ImageFont.FreeTypeFont]:
         """Load specific TrueType fonts for styles"""
         # Font search paths with proper file names
+
+        fonts: dict[str, ImageFont.ImageFont | ImageFont.FreeTypeFont] = {}
+
         font_candidates = [
             # DejaVu Serif (common on Raspberry Pi)
             {
@@ -100,7 +103,7 @@ def load_fonts(base_font_size: int, header_font_size: int, logger=None):
 
         if not font_paths:
             default = ImageFont.load_default()
-            return
+            return fonts
 
         # Load fonts with fallback to normal if variants don't exist
         def load_font(style, size):
@@ -112,429 +115,318 @@ def load_fonts(base_font_size: int, header_font_size: int, logger=None):
             except Exception as e:
                 return ImageFont.load_default()
 
-        self.fonts['normal'] = load_font('normal', self.base_font_size)
-        self.fonts['bold'] = load_font('bold', self.base_font_size)
-        self.fonts['italic'] = load_font('italic', self.base_font_size)
-        self.fonts['bold_italic'] = load_font('bold_italic', self.base_font_size)
-        self.fonts['h1'] = load_font('bold', self.header_font_size)
-        self.fonts['h2'] = load_font('bold', int(self.header_font_size * 0.9))
-    
+        fonts['normal'] = load_font('normal', base_font_size)
+        fonts['bold'] = load_font('bold', base_font_size)
+        fonts['italic'] = load_font('italic', base_font_size)
+        fonts['bold_italic'] = load_font('bold_italic', base_font_size)
+        fonts['h1'] = load_font('bold', header_font_size)
+        fonts['h2'] = load_font('bold', int(header_font_size * 0.9))
 
-class TextRenderer:
-    """
-    EPUB renderer using direct Pillow text drawing with Rich Text support.
-    """
+        return fonts
 
-    def __init__(self, width: int , height: int, *, use_cache:bool=True, zoom_factor: float = 1.0):
-        
-        self.logger = logging.getLogger(__name__)
-        # self.width = width
-        # self.height = height
-        self.zoom_factor = zoom_factor
-
-        # Layout settings
-        self.margin_left = 10
-        self.margin_right = 10
-        self.margin_top = 30
-        self.margin_bottom = 10
-        self.line_spacing = 1.3
-        self.paragraph_spacing = 5    # Reduced for book-like look
-        self.paragraph_indent = 20    # Indent for new paragraphs
-        
-        # Font sizes
-        # self.base_font_size = int(18 * zoom_factor)
-        # self.header_font_size = int(24 * zoom_factor)
-        # self.base_font_size = int(14 * zoom_factor)
-        # self.header_font_size = int(20 * zoom_factor)
-        
-        # Calculate text area
-        # self.text_width = width - self.margin_left - self.margin_right
-        # self.text_height = height - self.margin_top - self.margin_bottom
-        
-        # # Load fonts map
-        # self.fonts = {}
-        # self._load_fonts()
-        
-        # # Book content
-        # self.book: Book | None = None
-        # self.use_cache = use_cache
-        
-
-    def load_fonts(self):
-        """Load specific TrueType fonts for styles"""
-        # Font search paths with proper file names
-        font_candidates = [
-            # DejaVu Serif (common on Raspberry Pi)
-            {
-                'normal': '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
-                'bold': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
-                'italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf',
-                'bold_italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf',
-            },
-            # Liberation Serif
-            {
-                'normal': '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
-                'bold': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
-                'italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf',
-                'bold_italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf',
-            },
-            # Windows fonts
-            {
-                'normal': 'C:/Windows/Fonts/times.ttf',
-                'bold': 'C:/Windows/Fonts/timesbd.ttf',
-                'italic': 'C:/Windows/Fonts/timesi.ttf',
-                'bold_italic': 'C:/Windows/Fonts/timesbi.ttf',
-            },
-        ]
-
-        # Find first available font family
-        font_paths = None
-        for candidate in font_candidates:
-            if path.exists(candidate['normal']):
-                font_paths = candidate
-                self.logger.info(f"Using font: {candidate['normal']}")
-                break
-
-        if not font_paths:
-            self.logger.warning("No TrueType fonts found, using default bitmap font")
-            default = ImageFont.load_default()
-            self.fonts = {k: default for k in ['normal', 'bold', 'italic', 'bold_italic', 'h1', 'h2']}
-            return
-
-        # Load fonts with fallback to normal if variants don't exist
-        def load_font(style, size):
-            font_path = font_paths.get(style, font_paths['normal'])
-            if not path.exists(font_path):
-                font_path = font_paths['normal']  # Fallback to normal
-            try:
-                return ImageFont.truetype(font_path, size)
-            except Exception as e:
-                self.logger.warning(f"Failed to load {font_path}: {e}")
-                return ImageFont.load_default()
-
-        self.fonts['normal'] = load_font('normal', self.base_font_size)
-        self.fonts['bold'] = load_font('bold', self.base_font_size)
-        self.fonts['italic'] = load_font('italic', self.base_font_size)
-        self.fonts['bold_italic'] = load_font('bold_italic', self.base_font_size)
-        self.fonts['h1'] = load_font('bold', self.header_font_size)
-        self.fonts['h2'] = load_font('bold', int(self.header_font_size * 0.9))
-    
-    def _load_cache(self) -> bool:
+def load_cache(cached_book:str) -> Book | None:
         """Try to load layout from cache"""
-        
-        if not self.use_cache or self.book is None:
-            return False
-        
-        c_path = path.join(self.book.cache_path, str(self.book.id))
-        if path.exists(c_path):
-            try:
-                with open(c_path, 'rb') as f:
-                    data = pickle.load(f)
-                    self.book.id = data['id']
-                    self.book.title = data['title']
-                    self.book.author = data['author']
-                    self.book.epub_path = data['epub_path']
-                    self.book.cache_path = data['cache_path']
-                    self.book.current_page = data['current_page']
-                    self.book.pages = data['pages']
-                    self.book.page_count = data['page_count']
-                    self.book.images = data.get('images', {})
-                    self.book.custom_fonts = data.get('custom_fonts', {})
-                    self.book.book = data['book']
-                    
-                    
-                    
-                self.logger.info(f"Loaded layout from cache: {c_path}")
-                return True
-            except Exception as e:
-                self.logger.warning(f"Failed to load cache: {e}")
-        return False
+       
+               
+        c_path = path.join(cached_book)
+        if path.exists(c_path):           
+            with open(c_path, 'rb') as f:
+                data = pickle.load(f)
 
-    def _save_cache(self):
+                book = Book(
+                    id=data['id'],
+                    title=data['title'],
+                    author=data['author'],
+                    epub_path=data['epub_path'],
+                    cache_path=data['cache_path'],
+                    current_page=data['current_page'],
+                    pages=data['pages'],
+                    page_count=data['page_count'],
+                    images=data.get('images', {}),
+                    custom_fonts=data.get('custom_fonts', {}),
+                    book=data['book']
+                )
+                return book
+            
+        return None
+
+
+def save_cache(cache_path:str, book:Book):
         """Save layout to cache"""
-        if not self.use_cache or self.book is None:
-            return
+        if path.exists(cache_path):
+            with open(cache_path, 'wb') as f:
+                pickle.dump(book.to_dict(), f)
+
+def create_book(id: int, title: str, author: str, epub_path: str) -> Book :
+    book_item:Book = Book(
+        id=id,
+        title=title,
+        author=author,
+        epub_path=epub_path,
+        cache_path="",
+        current_page=0,
+        pages=[],
+        page_count=0,
+        images={},
+        custom_fonts={},
+        book=None
+    )
+
+    
+    
+    book:epub.EpubBook = epub.read_epub(epub_path)    
+
+    # First pass: Extract and cache all images and fonts from EPUB
+    book_item.images = extract_images(book)
+    book_item.custom_fonts = extract_fonts(book)
+
+    all_tokens = []
+
+    docs = list(book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
+    total_docs = len(docs)
+    
+    for idx, item in enumerate(docs):
         
         try:
-            c_path = path.join(self.book.cache_path, str(self.book.id))
-            with open(c_path, 'wb') as f:
-                pickle.dump(self.book.to_dict(), f)
-            self.logger.info(f"Saved layout to cache: {c_path}")
+            content = item.get_content()
+            try:
+                html = content.decode('utf-8')
+            except UnicodeDecodeError:
+                html = content.decode('latin-1', errors='ignore')
+
+            tokens = self._parse_html(html)
+            if tokens:
+                all_tokens.extend(tokens)
+                all_tokens.append(TextToken("", "normal", new_paragraph=True))
         except Exception as e:
-            self.logger.warning(f"Failed to save cache: {e}")
+            self.logger.warning(f"Chapter error: {e}")
 
-    def load_epub(self, book:Book, use_cache: bool = True) -> epub.EpubBook | None:
-        self.logger.info(f"Loading EPUB: {book.epub_path}")
-        self.use_cache = use_cache
-        self.book = book
+    
 
-        # Try cache first
-        if self._load_cache():
-            # Still need to load the book for images and fonts
-            self.book.book = epub.read_epub(book.epub_path)
-            self._extract_images()
-            self._extract_fonts()
-            return self.book.book
+    self._reflow_pages(all_tokens)
+    self._save_cache()
+    self.logger.info(f"Loaded EPUB: {self.page_count} pages")
+    
+    return self.book.book
 
-        self.book.book = epub.read_epub(book.epub_path)
+def extract_images(book: epub.EpubBook) -> dict[str, Image.Image]:
+    """Extract all images from EPUB and cache them (including SVG conversion)"""
 
-       
+    images: dict[str, Image.Image] = {}
+    for item in book.get_items_of_type(ebooklib.ITEM_IMAGE):
+        try:
+            img_name = item.get_name()
+            img_data = item.get_content()
 
-        # First pass: Extract and cache all images and fonts from EPUB
-        self._extract_images()
-        self._extract_fonts()
-
-        all_tokens = []
-
-        docs = list(self.book.book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
-        total_docs = len(docs)
-        
-        for idx, item in enumerate(docs):
-           
-            try:
-                content = item.get_content()
-                try:
-                    html = content.decode('utf-8')
-                except UnicodeDecodeError:
-                    html = content.decode('latin-1', errors='ignore')
-
-                tokens = self._parse_html(html)
-                if tokens:
-                    all_tokens.extend(tokens)
-                    all_tokens.append(TextToken("", "normal", new_paragraph=True))
-            except Exception as e:
-                self.logger.warning(f"Chapter error: {e}")
-
-       
-
-        self._reflow_pages(all_tokens)
-        self._save_cache()
-        self.logger.info(f"Loaded EPUB: {self.page_count} pages")
-        
-        return self.book.book
-
-    def _extract_images(self):
-        """Extract all images from EPUB and cache them (including SVG conversion)"""
-        if not self.book or not self.book.book:
-            return
-        for item in self.book.book.get_items_of_type(ebooklib.ITEM_IMAGE):
-            try:
-                img_name = item.get_name()
-                img_data = item.get_content()
-
-                # Check if this is an SVG file
-                if img_name.lower().endswith('.svg'):
-                    if SVG_SUPPORT:
-                        try:
-                            # Convert SVG to PNG using cairosvg
-                            png_data = cairosvg.svg2png(bytestring=img_data, output_width=800) #type: ignore
-                            img = Image.open(BytesIO(png_data))                                 #type: ignore
-                            self.logger.debug(f"Converted SVG to raster: {img_name}")
-                        except Exception as e:
-                            self.logger.warning(f"Failed to convert SVG {img_name}: {e}")
-                            continue
-                    else:
-                        self.logger.warning(f"SVG support not available (install cairosvg): {img_name}")
+            # Check if this is an SVG file
+            if img_name.lower().endswith('.svg'):
+                if SVG_SUPPORT:
+                    try:
+                        # Convert SVG to PNG using cairosvg
+                        png_data = cairosvg.svg2png(bytestring=img_data, output_width=800) #type: ignore
+                        img = Image.open(BytesIO(png_data)) #type: ignore
+                    except Exception as e:
                         continue
                 else:
-                    # Regular raster image (PNG, JPG, GIF, etc.)
-                    img = Image.open(BytesIO(img_data))
+                    continue
+            else:
+                # Regular raster image (PNG, JPG, GIF, etc.)
+                img = Image.open(BytesIO(img_data))
 
-                # Convert to appropriate mode for e-ink
-                if img.mode == 'RGBA':
-                    # Create white background for transparency
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
-                    img = background
-                elif img.mode not in ['RGB', 'L', '1']:
-                    img = img.convert('RGB')
+            # Convert to appropriate mode for e-ink
+            if img.mode == 'RGBA':
+                # Create white background for transparency
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                img = background
+            elif img.mode not in ['RGB', 'L', '1']:
+                img = img.convert('RGB')
 
-                # Store with filename as key
-                self.book.images[img_name] = img
-                self.logger.debug(f"Extracted image: {img_name} ({img.size[0]}x{img.size[1]})")
-            except Exception as e:
-                self.logger.warning(f"Failed to extract image {item.get_name()}: {e}")
+            # Store with filename as key
+            images[img_name] = img
+        except Exception as e:
+            print(f"Failed to extract image {item.get_name()}: {e}")
 
-        self.logger.info(f"Extracted images from EPUB")
+    return images
 
-    def _extract_fonts(self):
-        """Extract embedded fonts from EPUB"""
-        import tempfile
-        if not self.book or not self.book.book:
-            return
-        
-        for item in self.book.book.get_items():
-            # Check if this is a font file (TTF, OTF, WOFF, etc.)
-            item_name = item.get_name().lower()
-            if any(item_name.endswith(ext) for ext in ['.ttf', '.otf', '.woff', '.woff2']):
-                try:
-                    font_data = item.get_content()
-
-                    # WOFF/WOFF2 fonts need conversion (skip for now - complex)
-                    if item_name.endswith(('.woff', '.woff2')):
-                        self.logger.debug(f"Skipping WOFF font (conversion not supported): {item.get_name()}")
-                        continue
-
-                    # Save TTF/OTF to temp file (PIL needs file path, not bytes)
-                    temp_font = tempfile.NamedTemporaryFile(delete=False, suffix=path.splitext(item_name)[1])
-                    temp_font.write(font_data)
-                    temp_font.close()
-
-                    # Extract font family name from filename
-                    font_name = path.splitext(path.basename(item_name))[0]
-                    self.book.custom_fonts[font_name] = temp_font.name
-
-                    self.logger.debug(f"Extracted font: {font_name} from {item.get_name()}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to extract font {item.get_name()}: {e}")
-
-        if self.book.custom_fonts:
-            self.logger.info(f"Extracted {len(self.book.custom_fonts)} custom fonts from EPUB")
-            # Try to use custom fonts if available
-            self._try_load_custom_fonts()
-
-    def _try_load_custom_fonts(self):
-        """Try to load custom EPUB fonts for rendering"""
-        # Look for fonts that might replace our default fonts
-        if not self.book:
-            return
-        
-        for font_name, font_path in self.book.custom_fonts.items():
-            font_name_lower = font_name.lower()
-
-            # Try to match to our font styles
+def extract_fonts(book: epub.EpubBook) -> dict[str, str]:
+    custom_fonts: dict[str, str] = {}
+    """Extract embedded fonts from EPUB"""
+    import tempfile
+    
+    
+    for item in book.get_items():
+        # Check if this is a font file (TTF, OTF, WOFF, etc.)
+        item_name = item.get_name().lower()
+        if any(item_name.endswith(ext) for ext in ['.ttf', '.otf', '.woff', '.woff2']):
             try:
-                if 'bolditalic' in font_name_lower or 'bold-italic' in font_name_lower:
-                    self.fonts['bold_italic'] = ImageFont.truetype(font_path, self.base_font_size)
-                    self.logger.info(f"Using custom bold-italic font: {font_name}")
-                elif 'bold' in font_name_lower:
-                    self.fonts['bold'] = ImageFont.truetype(font_path, self.base_font_size)
-                    self.fonts['h1'] = ImageFont.truetype(font_path, self.header_font_size)
-                    self.fonts['h2'] = ImageFont.truetype(font_path, int(self.header_font_size * 0.9))
-                    self.logger.info(f"Using custom bold font: {font_name}")
-                elif 'italic' in font_name_lower:
-                    self.fonts['italic'] = ImageFont.truetype(font_path, self.base_font_size)
-                    self.logger.info(f"Using custom italic font: {font_name}")
-                elif 'regular' in font_name_lower or 'normal' in font_name_lower or len(self.book.custom_fonts) == 1:
-                    # Use as default font if it's marked as regular/normal or it's the only font
-                    self.fonts['normal'] = ImageFont.truetype(font_path, self.base_font_size)
-                    self.logger.info(f"Using custom normal font: {font_name}")
+                font_data = item.get_content()
+
+                # WOFF/WOFF2 fonts need conversion (skip for now - complex)
+                if item_name.endswith(('.woff', '.woff2')):
+                    print(f"Skipping WOFF font (conversion not supported): {item.get_name()}")
+                    continue
+
+                # Save TTF/OTF to temp file (PIL needs file path, not bytes)
+                temp_font = tempfile.NamedTemporaryFile(delete=False, suffix=path.splitext(item_name)[1])
+                temp_font.write(font_data)
+                temp_font.close()
+
+                # Extract font family name from filename
+                font_name = path.splitext(path.basename(item_name))[0]
+                custom_fonts[font_name] = temp_font.name
+
+                print(f"Extracted font: {font_name} from {item.get_name()}")
             except Exception as e:
-                self.logger.warning(f"Failed to load custom font {font_name}: {e}")
+                print(f"Failed to extract font {item.get_name()}: {e}")
 
-    def _parse_html(self, html: str) -> List[Union[TextToken, ImageToken, TableToken]]:
+    if custom_fonts:
+        print(f"Extracted {len(custom_fonts)} custom fonts from EPUB")
 
-        if not self.book:
-            return []
+    return custom_fonts
 
-        """Parse HTML into flat list of tokens with styles"""
-        soup = BeautifulSoup(html, 'html.parser')
-        tokens = []
+def _try_load_custom_fonts(self):
+    """Try to load custom EPUB fonts for rendering"""
+    # Look for fonts that might replace our default fonts
+    if not self.book:
+        return
+    
+    for font_name, font_path in self.book.custom_fonts.items():
+        font_name_lower = font_name.lower()
 
-        # Remove metadata
-        for tag in soup(['head', 'script', 'style', 'title', 'meta']):
-            tag.decompose()
+        # Try to match to our font styles
+        try:
+            if 'bolditalic' in font_name_lower or 'bold-italic' in font_name_lower:
+                self.fonts['bold_italic'] = ImageFont.truetype(font_path, self.base_font_size)
+                self.logger.info(f"Using custom bold-italic font: {font_name}")
+            elif 'bold' in font_name_lower:
+                self.fonts['bold'] = ImageFont.truetype(font_path, self.base_font_size)
+                self.fonts['h1'] = ImageFont.truetype(font_path, self.header_font_size)
+                self.fonts['h2'] = ImageFont.truetype(font_path, int(self.header_font_size * 0.9))
+                self.logger.info(f"Using custom bold font: {font_name}")
+            elif 'italic' in font_name_lower:
+                self.fonts['italic'] = ImageFont.truetype(font_path, self.base_font_size)
+                self.logger.info(f"Using custom italic font: {font_name}")
+            elif 'regular' in font_name_lower or 'normal' in font_name_lower or len(self.book.custom_fonts) == 1:
+                # Use as default font if it's marked as regular/normal or it's the only font
+                self.fonts['normal'] = ImageFont.truetype(font_path, self.base_font_size)
+                self.logger.info(f"Using custom normal font: {font_name}")
+        except Exception as e:
+            self.logger.warning(f"Failed to load custom font {font_name}: {e}")
 
-        def process_node(node, current_style='normal', current_align='left'):
-            if isinstance(node, element.NavigableString):
-                text = str(node).replace('\n', ' ').strip()
-                if not text: return
+def _parse_html(self, html: str) -> List[Union[TextToken, ImageToken, TableToken]]:
 
-                words = re.split(r'(\s+)', str(node).replace('\n', ' '))
-                for w in words:
-                    if w:
-                        tokens.append(TextToken(w, current_style, False, current_align))
-                return
+    if not self.book:
+        return []
 
-            if isinstance(node, Tag):
-                # Handle table tags
-                if node.name == 'table':
-                    rows = []
-                    for tr in node.find_all('tr'):
-                        cells = []
-                        for cell in tr.find_all(['td', 'th']):
-                            # Extract text from cell, preserving basic formatting
-                            cell_text = cell.get_text(separator=' ', strip=True)
-                            cells.append(cell_text)
-                        if cells:
-                            rows.append(cells)
+    """Parse HTML into flat list of tokens with styles"""
+    soup = BeautifulSoup(html, 'html.parser')
+    tokens = []
 
-                    if rows:
-                        tokens.append(TableToken(rows, self.text_width))
-                        self.logger.debug(f"Added table token: {len(rows)} rows")
-                    return  # Don't process children of table tag
+    # Remove metadata
+    for tag in soup(['head', 'script', 'style', 'title', 'meta']):
+        tag.decompose()
 
-                # Handle image tags
-                if node.name == 'img':
-                    src = node.get('src', '')
-                    if src:
-                        # Normalize path (remove ../ and leading /)
-                        img_path = src.split('/')[-1]  # Get just the filename #type: ignore
+    def process_node(node, current_style='normal', current_align='left'):
+        if isinstance(node, element.NavigableString):
+            text = str(node).replace('\n', ' ').strip()
+            if not text: return
 
-                        # Try to find image in cache
-                        img = None
-                        for key in self.book.images.keys(): #type: ignore
-                            if key.endswith(img_path) or img_path in key:
-                                img = self.book.images[key] #type: ignore
-                                break
+            words = re.split(r'(\s+)', str(node).replace('\n', ' '))
+            for w in words:
+                if w:
+                    tokens.append(TextToken(w, current_style, False, current_align))
+            return
 
-                        if img:
-                            # Add image token with max dimensions
-                            max_img_width = self.text_width
-                            max_img_height = int(self.text_height * 0.6)  # Max 60% of page height
-                            tokens.append(ImageToken(img, max_img_width, max_img_height))
-                            self.logger.debug(f"Added image token: {img_path}")
-                        else:
-                            self.logger.warning(f"Image not found in EPUB: {src}")
-                    return  # Don't process children of img tag
+        if isinstance(node, Tag):
+            # Handle table tags
+            if node.name == 'table':
+                rows = []
+                for tr in node.find_all('tr'):
+                    cells = []
+                    for cell in tr.find_all(['td', 'th']):
+                        # Extract text from cell, preserving basic formatting
+                        cell_text = cell.get_text(separator=' ', strip=True)
+                        cells.append(cell_text)
+                    if cells:
+                        rows.append(cells)
 
-                style = current_style
-                align = current_align
-                is_block = node.name in ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'br', 'li']
+                if rows:
+                    tokens.append(TableToken(rows, self.text_width))
+                    self.logger.debug(f"Added table token: {len(rows)} rows")
+                return  # Don't process children of table tag
 
-                # Check for CSS text-align in style attribute
-                node_style = node.get('style', '')
-                if 'text-align' in node_style:      #type: ignore
-                    if 'center' in node_style:      #type: ignore
-                        align = 'center'
-                    elif 'right' in node_style:      #type: ignore
-                        align = 'right'
-                    elif 'left' in node_style:      #type: ignore
-                        align = 'left'
+            # Handle image tags
+            if node.name == 'img':
+                src = node.get('src', '')
+                if src:
+                    # Normalize path (remove ../ and leading /)
+                    img_path = src.split('/')[-1]  # Get just the filename #type: ignore
 
-                # Check for center tag
-                if node.name == 'center':
+                    # Try to find image in cache
+                    img = None
+                    for key in self.book.images.keys(): #type: ignore
+                        if key.endswith(img_path) or img_path in key:
+                            img = self.book.images[key] #type: ignore
+                            break
+
+                    if img:
+                        # Add image token with max dimensions
+                        max_img_width = self.text_width
+                        max_img_height = int(self.text_height * 0.6)  # Max 60% of page height
+                        tokens.append(ImageToken(img, max_img_width, max_img_height))
+                        self.logger.debug(f"Added image token: {img_path}")
+                    else:
+                        self.logger.warning(f"Image not found in EPUB: {src}")
+                return  # Don't process children of img tag
+
+            style = current_style
+            align = current_align
+            is_block = node.name in ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'br', 'li']
+
+            # Check for CSS text-align in style attribute
+            node_style = node.get('style', '')
+            if 'text-align' in node_style:      #type: ignore
+                if 'center' in node_style:      #type: ignore
                     align = 'center'
+                elif 'right' in node_style:      #type: ignore
+                    align = 'right'
+                elif 'left' in node_style:      #type: ignore
+                    align = 'left'
 
-                # Determine style
-                if node.name in ['b', 'strong']:
-                    style = 'bold_italic' if 'italic' in style else 'bold'
-                elif node.name in ['i', 'em']:
-                    style = 'bold_italic' if 'bold' in style else 'italic'
-                elif node.name == 'h1':
-                    style = 'h1'
-                    align = 'center'  # Headers are typically centered
-                elif node.name == 'h2':
-                    style = 'h2'
-                    align = 'center'  # Headers are typically centered
-                elif node.name in ['h3', 'h4']:
-                    style = 'bold'
+            # Check for center tag
+            if node.name == 'center':
+                align = 'center'
 
-                if is_block and tokens and not tokens[-1].new_paragraph:
-                    # Mark last token to end paragraph
-                    if isinstance(tokens[-1], TextToken):
-                        tokens[-1] = tokens[-1]._replace(new_paragraph=True)
+            # Determine style
+            if node.name in ['b', 'strong']:
+                style = 'bold_italic' if 'italic' in style else 'bold'
+            elif node.name in ['i', 'em']:
+                style = 'bold_italic' if 'bold' in style else 'italic'
+            elif node.name == 'h1':
+                style = 'h1'
+                align = 'center'  # Headers are typically centered
+            elif node.name == 'h2':
+                style = 'h2'
+                align = 'center'  # Headers are typically centered
+            elif node.name in ['h3', 'h4']:
+                style = 'bold'
 
-                for child in node.children:
-                    process_node(child, style, align)
+            if is_block and tokens and not tokens[-1].new_paragraph:
+                # Mark last token to end paragraph
+                if isinstance(tokens[-1], TextToken):
+                    tokens[-1] = tokens[-1]._replace(new_paragraph=True)
 
-                if is_block and tokens and not tokens[-1].new_paragraph:
-                    # Mark last token to end paragraph
-                    if isinstance(tokens[-1], TextToken):
-                        tokens[-1] = tokens[-1]._replace(new_paragraph=True)
+            for child in node.children:
+                process_node(child, style, align)
 
-        process_node(soup.body if soup.body else soup)
-        return tokens
+            if is_block and tokens and not tokens[-1].new_paragraph:
+                # Mark last token to end paragraph
+                if isinstance(tokens[-1], TextToken):
+                    tokens[-1] = tokens[-1]._replace(new_paragraph=True)
+
+    process_node(soup.body if soup.body else soup)
+    return tokens
 
     def _reflow_pages(self, tokens: List[TextToken]):
         """Reflow tokens into pages based on width/height"""
