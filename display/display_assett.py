@@ -6,7 +6,29 @@ from dataclasses import dataclass
 from enum import Enum
 from os import path, remove
 
-
+FONT_CANIDATES: list[dict[str, str]] = [
+        # DejaVu Serif (common on Raspberry Pi)
+        {
+            'normal': '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
+            'bold': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
+            'italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf',
+            'bold_italic': '/usr/share/fonts/truetype/dejavu/DejaVuSerif-BoldItalic.ttf',
+        },
+        # Liberation Serif
+        {
+            'normal': '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+            'bold': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+            'italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf',
+            'bold_italic': '/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf',
+        },
+        # Windows fonts
+        {
+            'normal': 'C:/Windows/Fonts/times.ttf',
+            'bold': 'C:/Windows/Fonts/timesbd.ttf',
+            'italic': 'C:/Windows/Fonts/timesi.ttf',
+            'bold_italic': 'C:/Windows/Fonts/timesbi.ttf',
+        },
+    ]
 
 class FontSize(Enum):
     SMALL = 1
@@ -71,9 +93,52 @@ class _IconManager:
     def get_icon_names(self) -> list[str]:
         return list(self.icons.keys())
 
+
+def _load_fonts(font_canidates:list[dict[str, str]] = FONT_CANIDATES, *,
+               base_font_size:int = 18, header_font_size=24, zoom_factor:float=1.0) -> dict[str, ImageFont.FreeTypeFont | ImageFont.ImageFont ]:
+    """Load specific TrueType fonts for styles"""
+
+    base_font_size = int(18 * zoom_factor)
+    header_font_size = int(24 * zoom_factor)
+    
+    fonts:dict[str, ImageFont.FreeTypeFont | ImageFont.ImageFont ] = {}
+    # Find first available font family
+    font_paths = None
+
+    for candidate in font_canidates:
+        if os.path.exists(candidate['normal']):
+            font_paths = candidate
+            break
+
+    if not font_paths:
+        default = ImageFont.load_default()
+        fonts = {k: default for k in ['normal', 'bold', 'italic', 'bold_italic', 'h1', 'h2']}
+        return fonts
+
+    # Load fonts with fallback to normal if variants don't exist
+    def load_font(style, size):
+        path = font_paths.get(style, font_paths['normal'])
+        if not os.path.exists(path):
+            path = font_paths['normal']  # Fallback to normal
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception as e:
+            print(f"Failed to load {path}: {e}")
+            return ImageFont.load_default()
+
+    fonts['normal'] = load_font('normal', base_font_size)
+    fonts['bold'] = load_font('bold', base_font_size)
+    fonts['italic'] = load_font('italic', base_font_size)
+    fonts['bold_italic'] = load_font('bold_italic', base_font_size)
+    fonts['h1'] = load_font('bold', header_font_size)
+    fonts['h2'] = load_font('bold', int(header_font_size * 0.9))
+
+    return fonts
+
   
 iconmanager = _IconManager()
 fontmanager = _FontManager()
+FONT_MAP = _load_fonts()
 
 def make_icons():
     icons: list[str] = ["home.png", "audio.png", "mp3.png", "settings.png", "ereader.png"]

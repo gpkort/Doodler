@@ -12,7 +12,8 @@ import os
 import re
 from io import BytesIO
 from typing import List, NamedTuple, Union
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup,  Tag
+from bs4.element import NavigableString
 
 # Optional: SVG support (requires cairosvg)
 try:

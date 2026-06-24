@@ -9,4 +9,4 @@ from .utilities import (DisplayDriver,
                         SCREEN_HEIGHT)
 
 from .display_driver import TkDisplayDriver, EPaperDisplayDriver
-from .display_assett import FontConfig, FontSize, fontmanager, iconmanager, make_icons
+from .display_assett import FontConfig, FontSize, fontmanager, iconmanager, make_icons, FONT_MAP
